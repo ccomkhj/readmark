@@ -390,6 +390,24 @@ describe("Highlights in the Library", () => {
     expect(await counts()).toEqual({ list: { [id]: 1, [secondId]: 0 }, get: 1 });
   });
 
+  it("re-importing identical bytes returns created:false and leaves Highlights and Notes untouched", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await createHighlight(t, documentId, rangeOf(SAMPLE, 2, "Chapter Two"));
+    await putNote(t, highlight.id, { text: "keep me\n- intact" });
+    const before = await (await t.request(`/api/documents/${documentId}/highlights`)).json();
+
+    const res = await importFixture(t, SAMPLE);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ created: false, document: { id: documentId, highlightCount: 2 } });
+    expect(await (await t.request(`/api/documents/${documentId}/highlights`)).json()).toEqual(before);
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([
+      ["Chapter One", "keep me\n- intact"],
+      ["Chapter Two", null],
+    ]);
+  });
+
   it("removing a Document removes its Highlights; re-importing gives a fresh Document without them", async () => {
     const t = app.get();
     const { documentId, highlight } = await sampleWithHighlight(t);
