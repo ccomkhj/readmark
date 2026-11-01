@@ -1,5 +1,9 @@
 # Readmark
 
+## Commits
+
+Do not add `Co-Authored-By` trailers (or any other agent attribution) to commit messages or PR descriptions.
+
 ## Agent skills
 
 ### Issue tracker
