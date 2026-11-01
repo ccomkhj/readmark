@@ -97,9 +97,9 @@ See `GLOSSARY.md` for terms and `docs/adr/0001-app-owned-annotations-content-ide
 
 ### Modules
 
-1. **Page Text** (shared, pure; the core of anchoring). Input: the ordered text items PDF.js extracts for a page. Output: that page's **canonical page text**, i.e. the item strings concatenated in order, with a line break appended after each item PDF.js marks as end-of-line. Also provides **quote derivation**: given canonical page texts and a start/end anchor, return the quoted text, built by slicing the range (joining page segments with a line break when it crosses pages), collapsing every whitespace run to a single space, and trimming. The browser and server must use this same module so anchors computed in the browser mean the same thing on the server.
+1. **Page Text** (shared, pure; the core of anchoring). Input: the ordered text items PDF.js extracts for a page. Output: that page's **canonical page text**, i.e. the item strings concatenated in order, with a line break appended after each item PDF.js marks as end-of-line. Also provides **page furniture detection** and **quote derivation**. Page furniture detection: given all canonical page texts of a Document, return per page the character ranges of its furniture lines (running headers, footers, watermarks, bare page numbers); see "Page furniture" below. Body segments: given canonical page texts, page furniture and a start/end anchor, return the parts of the range that hold body text: split at page breaks, furniture removed, each part trimmed of surrounding whitespace, whitespace-only parts dropped. Quote derivation: the body segments' texts joined with a line break, every whitespace run collapsed to a single space, and trimmed. The browser and server must use this same module so anchors computed in the browser mean the same thing on the server.
 2. **Library** (server). Import: compute the SHA-256 of the PDF bytes. If a Document with that hash exists, return it (not created). Otherwise parse with PDF.js and reject if the PDF isn't a PDF, is encrypted, or has zero non-whitespace characters across all pages. Then extract title/author from PDF metadata (title falls back to the original filename without extension; author may be null), store the bytes in the Library, and store the canonical page text for every page. Also covers list, get, get-file-bytes, and remove (which removes the bytes, page texts, Highlights, and Notes).
-3. **Highlights & Notes** (server). Create a Highlight from a start and end anchor. Validate that both anchors are within bounds of the canonical page texts and that start comes before end in reading order. Derive the quote via Page Text and reject if it is empty after trimming. Reject if the range overlaps any existing Highlight in the Document. Persist anchors plus quote. Delete a Highlight (its Note goes with it). Put a Note (create or replace; whitespace-only text deletes it). Delete a Note.
+3. **Highlights & Notes** (server). Create a Highlight from a start and end anchor. Validate that both anchors are within bounds of the canonical page texts and that start comes before end in reading order. Derive the quote via Page Text, excluding the Document's page furniture, and reject if it is empty after trimming (a whitespace-only or furniture-only selection). Reject if the range overlaps any existing Highlight in the Document. Persist anchors plus quote. Every Highlight it returns carries its body segments (computed on read from the stored page text). Delete a Highlight (its Note goes with it). Put a Note (create or replace; whitespace-only text deletes it). Delete a Note.
 4. **Insight Export** (server, pure given data). Input: Document metadata plus its Highlights with Notes. Output: a Markdown string (format below). Deterministic: no timestamps, no randomness.
 5. **HTTP API** (server, thin). Maps routes to the modules above; owns status codes and error codes only.
 6. **Reader UI** (browser). Library view (list, import via picker and drag-drop, remove with confirm, duplicate-import message). Reader view (PDF.js continuous-scroll rendering with text layer, page indicator, zoom, go-to-page). Selection mapping, which translates a DOM selection on the text layer into start/end anchors. Highlight overlays. Highlight action (button near the selection plus a keyboard shortcut). Note editor panel. Highlights sidebar. Export actions (download and copy).
@@ -109,8 +109,18 @@ See `GLOSSARY.md` for terms and `docs/adr/0001-app-owned-annotations-content-ide
 - An **anchor** is `{page, offset}`: `page` is the 1-based physical page index, `offset` is a 0-based character offset into that page's canonical page text. A Highlight's range is `[start, end)`, with end exclusive.
 - Reading order compares `(page, offset)` lexicographically. Highlights are always listed and exported sorted by start anchor.
 - Two Highlights **overlap** if their ranges share at least one character. Touching ranges (one's end equals the other's start) do not overlap.
-- No sentence snapping: the Highlight is exactly the selected range. Page numbers are physical page indices; PDF page labels (printed numbering such as roman numerals) are not used in v1.
+- No sentence snapping: the Highlight's anchors are exactly the selected range, page furniture included. Its quote and its overlays cover only the range's body segments, so a Highlight crossing a page break does not quote or mark the running header/footer in between. Page numbers are physical page indices; PDF page labels (printed numbering such as roman numerals) are not used in v1.
 - Browser selection mapping: each text-layer element corresponds to one PDF.js text item, whose start offset in the canonical page text is known. A selection endpoint maps to (item start offset + offset within the item). Endpoints that land outside a text item (between elements, on line-break elements, on page whitespace) snap to the nearest item boundary in the direction that shrinks the selection.
+
+### Page furniture
+
+- **Page furniture** is whole lines (EOL-delimited segments of canonical page text, blank lines ignored) at a page's top or bottom edge that belong to the page layout, not the body: running headers ("16 CHAPTER 1 A PRAGMATIC PHILOSOPHY", "GOOD-ENOUGH SOFTWARE 11"), footers and watermarks ("Prepared exclusively for Zach"), bare page numbers.
+- Detection (Page Text `detectPageFurniture`, pure and deterministic). Peel inward from each edge, at most 3 lines deep, stopping at the first body line. A line with a letter or digit is furniture if, at that same edge on at least max(3, a quarter of the Document's pages) pages:
+  - its shape recurs (digit runs and lowercase roman numerals as `#`, whitespace collapsed); or
+  - it begins or ends with the page's printed page number, i.e. physical page + an offset that recurs. A bare-number line may use an offset recurring at either edge (bottom page numbers of chapter-opening pages).
+- Documents of 1–2 pages have no page furniture.
+- Furniture is never stored. It is derived from the stored canonical page text when a Highlight is created (quote) and whenever one is returned (segments). Canonical page text and anchors are unchanged by it, so stored anchors stay valid. Stored quotes are fixed at creation; tuning the heuristic later changes segments of existing Highlights but not their quotes.
+- Known limits (accepted): the heuristic is tuned on one real book. A heading that coincides with the printed page number ("Chapter 1" on printed page 1) is treated as furniture; furniture behind a non-furniture edge line, or printed page numbers in roman numerals that recur less than the threshold, are kept.
 
 ### Schema (SQLite)
 
@@ -137,7 +147,7 @@ All routes are under `/api`. Errors return `{ error: <stable code>, message: <hu
 
 Shapes:
 - `document`: `{ id, title, author|null, pageCount, importedAt, highlightCount }`
-- `highlight`: `{ id, documentId, start, end, quote, note: { text, updatedAt } | null, createdAt }`
+- `highlight`: `{ id, documentId, start, end, segments: [{ start, end }], quote, note: { text, updatedAt } | null, createdAt }`. `segments` are the Highlight's body segments (see Page Text): each lies on one page, in reading order, page furniture excluded. The Reader draws overlays from `segments`, never from `start`/`end`.
 
 ### Insight Export format
 
@@ -157,6 +167,7 @@ Shapes:
 - Each test gets a fresh temporary data directory (via the environment override) and a real SQLite file, and uses real PDF.js parsing. Nothing is mocked.
 - **Fixtures**: small PDFs generated deterministically by a committed script, covering:
   - a multi-page text PDF with title/author metadata and a known sentence that crosses a page break
+  - a multi-page text PDF with page furniture on every page (running header with the printed page number, watermark footer, a bare page number) and a sentence crossing a page break
   - a text PDF with no metadata (title falls back to the filename)
   - an image-only PDF (no text layer)
   - an encrypted PDF
@@ -166,7 +177,7 @@ Shapes:
 - **Behaviors to cover through the API**:
   - Import: create, then re-import returns the same Document with `created: false`; bytes are retrievable; rejections for not_a_pdf, encrypted_pdf, and no_text_layer; title falls back to the filename; author is null when absent.
   - Listing order and `highlightCount`.
-  - Highlights: single-line create with the exact quote; quote across a line break; quote across a page break; whitespace collapsing; invalid_range (out of bounds, reversed, zero-length); empty_highlight; overlapping_highlight; touching ranges allowed; reading-order listing regardless of creation order.
+  - Highlights: single-line create with the exact quote; quote across a line break; quote across a page break; whitespace collapsing; invalid_range (out of bounds, reversed, zero-length); empty_highlight; overlapping_highlight; page furniture (excluded from a cross-page quote and from `segments`; furniture-only selection is empty_highlight; nothing stripped from a 1–2 page Document); touching ranges allowed; reading-order listing regardless of creation order.
   - Notes: put, replace, whitespace-only removes, delete; deleting a Highlight removes its Note.
   - Removing a Document removes its Highlights, and re-importing it afterwards gives a fresh Document with no Highlights.
   - Persistence: a new app instance pointed at the same data directory returns the same Library and Highlights.
@@ -199,6 +210,7 @@ Shapes:
 ## Further Notes
 
 - Identity by content (ADR-0001) means a re-downloaded or different edition of the same book with different bytes is a new Document, and Highlights do not carry over. This is accepted.
+- Quotes leave out page furniture but are otherwise the selected text: no sentence snapping, no reflow. Highlights created before page furniture detection keep their stored quote (which may include furniture); delete and re-create them to fix it.
 - Quotes keep whatever hyphenation the PDF text contains (e.g. "read- ing" across a line break). This is acceptable for agent consumption in v1; de-hyphenation is a candidate follow-up.
 - The PDF.js version must stay identical across browser and server. Canonical page text depends on PDF.js's item extraction, and an upgrade could shift offsets for already-stored anchors. Stored quotes are unaffected, and the Insight Export uses stored quotes only.
 - Likely first follow-ups: tags; PDF page labels in the Insight Export; a Puppeteer test for selection mapping if it proves fragile.

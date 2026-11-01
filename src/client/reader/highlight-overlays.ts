@@ -72,31 +72,34 @@ function drawPage(
   }
   const origin = page.element.getBoundingClientRect();
   const rects: HTMLElement[] = [];
+  // Draw a Highlight's body segments, not its whole range, so page furniture
+  // (running headers, footers) inside a cross-page Highlight stays unmarked.
+  // Each segment lies on one page.
   for (const highlight of highlights) {
-    if (highlight.start.page > page.pageNumber || highlight.end.page < page.pageNumber) continue;
-    const from = highlight.start.page === page.pageNumber ? highlight.start.offset : 0;
-    const to = highlight.end.page === page.pageNumber ? highlight.end.offset : page.text.length;
-    for (const item of page.items) {
-      const textNode = item.element.firstChild;
-      if (!item.element.isConnected || !textNode) continue;
-      const a = Math.max(from, item.start) - item.start;
-      const b = Math.min(to, item.start + item.str.length) - item.start;
-      if (a >= b) continue;
-      const range = document.createRange();
-      range.setStart(textNode, a);
-      range.setEnd(textNode, b);
-      const r = range.getBoundingClientRect();
-      const el = document.createElement("div");
-      el.className = RECT_CLASS;
-      el.classList.toggle(HAS_NOTE_CLASS, highlight.note !== null);
-      el.classList.toggle(ACTIVE_CLASS, highlight.id === activeId);
-      el.classList.toggle(FLASH_CLASS, highlight.id === flashId);
-      el.dataset.highlightId = highlight.id;
-      el.style.left = `${r.left - origin.left}px`;
-      el.style.top = `${r.top - origin.top}px`;
-      el.style.width = `${r.width}px`;
-      el.style.height = `${r.height}px`;
-      rects.push(el);
+    for (const { start, end } of highlight.segments) {
+      if (start.page !== page.pageNumber) continue;
+      for (const item of page.items) {
+        const textNode = item.element.firstChild;
+        if (!item.element.isConnected || !textNode) continue;
+        const a = Math.max(start.offset, item.start) - item.start;
+        const b = Math.min(end.offset, item.start + item.str.length) - item.start;
+        if (a >= b) continue;
+        const range = document.createRange();
+        range.setStart(textNode, a);
+        range.setEnd(textNode, b);
+        const r = range.getBoundingClientRect();
+        const el = document.createElement("div");
+        el.className = RECT_CLASS;
+        el.classList.toggle(HAS_NOTE_CLASS, highlight.note !== null);
+        el.classList.toggle(ACTIVE_CLASS, highlight.id === activeId);
+        el.classList.toggle(FLASH_CLASS, highlight.id === flashId);
+        el.dataset.highlightId = highlight.id;
+        el.style.left = `${r.left - origin.left}px`;
+        el.style.top = `${r.top - origin.top}px`;
+        el.style.width = `${r.width}px`;
+        el.style.height = `${r.height}px`;
+        rects.push(el);
+      }
     }
   }
   layer.replaceChildren(...rects);

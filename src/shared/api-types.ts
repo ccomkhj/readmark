@@ -1,7 +1,7 @@
 /** Wire shapes of the HTTP API (spec: "HTTP API contract"). Shared by server and client. */
-import type { Anchor } from "./page-text.ts";
+import type { Anchor, TextRange } from "./page-text.ts";
 
-export type { Anchor };
+export type { Anchor, TextRange };
 
 export type DocumentDto = {
   /** SHA-256 hex of the PDF bytes (ADR-0001). */
@@ -30,7 +30,13 @@ export type HighlightDto = {
   documentId: string;
   start: Anchor;
   end: Anchor;
-  /** Derived from canonical page text at creation (Page Text `deriveQuote`). */
+  /**
+   * The body-text parts of `[start, end)`: split at page breaks, page
+   * furniture left out, whitespace-trimmed, in reading order (Page Text
+   * `bodySegments`). At least one. Overlays draw these, not `start`/`end`.
+   */
+  segments: TextRange[];
+  /** Derived from canonical page text at creation, page furniture excluded (Page Text `deriveQuote`). */
   quote: string;
   /** 0 or 1 Note per Highlight. */
   note: NoteDto | null;

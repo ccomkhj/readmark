@@ -5,7 +5,16 @@
  */
 import { randomUUID } from "node:crypto";
 import type { HighlightDto } from "../shared/api-types.ts";
-import { compareAnchors, deriveQuote, isAnchorInBounds, type Anchor } from "../shared/page-text.ts";
+import {
+  bodySegments,
+  compareAnchors,
+  deriveQuote,
+  detectPageFurniture,
+  isAnchorInBounds,
+  type Anchor,
+  type PageFurniture,
+  type TextRange,
+} from "../shared/page-text.ts";
 import type { Db } from "./db.ts";
 import { documentNotFound, DomainError } from "./domain-error.ts";
 
@@ -47,11 +56,16 @@ export function createHighlights(db: Db): Highlights {
     if (!exists) throw documentNotFound(documentId);
   };
 
-  const pageTexts = (documentId: string): string[] => {
+  /**
+   * The Document's canonical page texts and page furniture. Furniture is
+   * derived on read, never stored: page text is immutable per Document.
+   */
+  const documentText = (documentId: string): DocumentText => {
     const rows = db
       .prepare(`SELECT text FROM page_texts WHERE document_id = ? ORDER BY page`)
       .all(documentId) as { text: string }[];
-    return rows.map((r) => r.text);
+    const pages = rows.map((r) => r.text);
+    return { pages, furniture: detectPageFurniture(pages) };
   };
 
   const find = (id: string) => db.prepare(`SELECT * FROM highlights WHERE id = ?`).get(id) as HighlightRow | undefined;
@@ -70,24 +84,28 @@ export function createHighlights(db: Db): Highlights {
   // One transaction so the overlap check and the insert see the same rows.
   const create = db.transaction((documentId: string, start: Anchor, end: Anchor): HighlightDto => {
     requireDocument(documentId);
-    const pages = pageTexts(documentId);
+    const text = documentText(documentId);
+    const { pages, furniture } = text;
     if (!isAnchorInBounds(pages, start) || !isAnchorInBounds(pages, end)) {
       throw new DomainError("invalid_range", "Anchor out of bounds of the Document's page text.");
     }
     if (compareAnchors(start, end) >= 0) {
       throw new DomainError("invalid_range", "Start must come before end in reading order.");
     }
-    const quote = deriveQuote(pages, start, end);
-    if (quote === "") throw new DomainError("empty_highlight", "The range contains only whitespace.");
+    const quote = deriveQuote(pages, start, end, furniture);
+    if (quote === "") {
+      throw new DomainError("empty_highlight", "The range contains only whitespace or page furniture.");
+    }
     // [start, end) ranges share a character iff each starts before the other ends.
+    // Whole ranges, furniture included: anchors are what is stored.
     const overlaps = listRows(documentId)
-      .map(toDto)
+      .map(rowRange)
       .some((h) => compareAnchors(start, h.end) < 0 && compareAnchors(h.start, end) < 0);
     if (overlaps) throw new DomainError("overlapping_highlight", "The range overlaps an existing Highlight.");
 
     const id = randomUUID();
     insert.run(id, documentId, start.page, start.offset, end.page, end.offset, quote, new Date().toISOString());
-    return toDto(find(id)!);
+    return toDto(find(id)!, text);
   });
 
   return {
@@ -95,7 +113,8 @@ export function createHighlights(db: Db): Highlights {
 
     list(documentId) {
       requireDocument(documentId);
-      return listRows(documentId).map(toDto);
+      const text = documentText(documentId);
+      return listRows(documentId).map((row) => toDto(row, text));
     },
 
     remove(id) {
@@ -116,7 +135,8 @@ export function createHighlights(db: Db): Highlights {
       .prepare(`UPDATE highlights SET note_text = ?, note_updated_at = ? WHERE id = ?`)
       .run(note?.text ?? null, note?.updatedAt ?? null, id);
     if (changes === 0) throw notFound(id);
-    return toDto(find(id)!);
+    const row = find(id)!;
+    return toDto(row, documentText(row.document_id));
   }
 }
 
@@ -124,12 +144,20 @@ function notFound(id: string): DomainError {
   return new DomainError("highlight_not_found", `No Highlight with id ${id}`);
 }
 
-function toDto(row: HighlightRow): HighlightDto {
+type DocumentText = { pages: string[]; furniture: PageFurniture };
+
+function rowRange(row: HighlightRow): TextRange {
+  return { start: { page: row.start_page, offset: row.start_offset }, end: { page: row.end_page, offset: row.end_offset } };
+}
+
+function toDto(row: HighlightRow, { pages, furniture }: DocumentText): HighlightDto {
+  const { start, end } = rowRange(row);
   return {
     id: row.id,
     documentId: row.document_id,
-    start: { page: row.start_page, offset: row.start_offset },
-    end: { page: row.end_page, offset: row.end_offset },
+    start,
+    end,
+    segments: bodySegments(pages, start, end, furniture),
     quote: row.quote,
     note: row.note_text === null ? null : { text: row.note_text, updatedAt: row.note_updated_at! },
     createdAt: row.created_at,

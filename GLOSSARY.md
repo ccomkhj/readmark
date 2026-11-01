@@ -20,6 +20,10 @@ _Avoid_: Annotation, Selection, Quote, Clip
 The reader's own words attached to exactly one Highlight; a Highlight has at most one Note.
 _Avoid_: Comment, Insight, Annotation
 
+**Page furniture**:
+The lines a page's layout repeats at its top or bottom edge rather than the body text: running headers and footers, watermarks, page numbers. Left out of a Highlight's quote and overlay, never out of its anchors.
+_Avoid_: Boilerplate, Chrome, Margin text
+
 **Insight Export**:
 The artifact generated from one Document's Highlights and Notes, in reading order, handed to an agent for summarizing. Not stored; produced on demand.
 _Avoid_: Summary, Digest, Insight (alone)
