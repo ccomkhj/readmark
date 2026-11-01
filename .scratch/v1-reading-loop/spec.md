@@ -121,19 +121,19 @@ See `GLOSSARY.md` for terms and `docs/adr/0001-app-owned-annotations-content-ide
 
 ### HTTP API contract
 
-All routes are under `/api`. Errors return `{ error: <stable code>, message: <human text> }`.
+All routes are under `/api`. Errors return `{ error: <stable code>, message: <human text> }`. Any route taking a body answers a malformed one (wrong shape, invalid JSON, missing multipart `file` field) with `400 bad_request`. Any route with a Document `:id` answers an unknown id with `404 document_not_found`; any route with a Highlight `:id` answers an unknown id with `404 highlight_not_found`.
 
-- `POST /api/documents`: multipart upload, field `file`. Returns `201 { document, created: true }` for a new Document, `200 { document, created: false }` for an existing one. Errors: `422 not_a_pdf`, `422 encrypted_pdf`, `422 no_text_layer`.
+- `POST /api/documents`: multipart upload, field `file`. Returns `201 { document, created: true }` for a new Document, `200 { document, created: false }` for an existing one (also when two uploads of the same bytes race). Errors: `400 bad_request`, `422 not_a_pdf`, `422 encrypted_pdf`, `422 no_text_layer`.
 - `GET /api/documents`: `200 [document]`, newest import first.
 - `GET /api/documents/:id`: `200 document`, or `404 document_not_found`.
-- `GET /api/documents/:id/file`: the PDF bytes (`application/pdf`).
-- `DELETE /api/documents/:id`: `204`.
-- `GET /api/documents/:id/highlights`: `200 [highlight]` in reading order.
-- `POST /api/documents/:id/highlights`: body `{ start: {page, offset}, end: {page, offset} }`. Returns `201 highlight`. Errors: `422 invalid_range` (out of bounds, or start not before end), `422 empty_highlight`, `409 overlapping_highlight`.
+- `GET /api/documents/:id/file`: the PDF bytes (`application/pdf`), or `404 document_not_found`.
+- `DELETE /api/documents/:id`: `204`, or `404 document_not_found`.
+- `GET /api/documents/:id/highlights`: `200 [highlight]` in reading order, or `404 document_not_found`.
+- `POST /api/documents/:id/highlights`: body `{ start: {page, offset}, end: {page, offset} }`. Returns `201 highlight`. Errors: `400 bad_request`, `404 document_not_found`, `422 invalid_range` (out of bounds, or start not before end), `422 empty_highlight`, `409 overlapping_highlight`.
 - `DELETE /api/highlights/:id`: `204`, or `404 highlight_not_found`.
-- `PUT /api/highlights/:id/note`: body `{ text }`. Returns `200 highlight`. Whitespace-only text removes the Note.
-- `DELETE /api/highlights/:id/note`: `200 highlight`.
-- `GET /api/documents/:id/export`: `200` with `text/markdown` containing the Insight Export, and a `Content-Disposition` filename of the slugified title plus `-insights.md`.
+- `PUT /api/highlights/:id/note`: body `{ text }`. Returns `200 highlight`. Whitespace-only text removes the Note. Errors: `400 bad_request`, `404 highlight_not_found`.
+- `DELETE /api/highlights/:id/note`: `200 highlight`, or `404 highlight_not_found`.
+- `GET /api/documents/:id/export`: `200` with `text/markdown` containing the Insight Export, and a `Content-Disposition` filename of the slugified title plus `-insights.md`. Unknown id: `404 document_not_found`.
 
 Shapes:
 - `document`: `{ id, title, author|null, pageCount, importedAt, highlightCount }`
@@ -147,7 +147,7 @@ Shapes:
 - Then one block per Highlight in reading order, with blocks separated by a horizontal rule. Each block contains:
   - A bold page reference line: `p. N`, or `pp. N–M` when the Highlight crosses pages.
   - The quote as a single blockquote line.
-  - If a Note exists, a paragraph starting with a bold `Note:` label followed by the Note text verbatim (multi-line and Markdown preserved).
+  - If a Note exists, a paragraph starting with a bold `Note:` label followed by the Note text verbatim (multi-line and Markdown preserved), except that its trailing whitespace is trimmed so the output ends with exactly one newline.
 - With zero Highlights, the blocks are replaced by a single italic "No highlights yet." line.
 - The output ends with exactly one trailing newline.
 

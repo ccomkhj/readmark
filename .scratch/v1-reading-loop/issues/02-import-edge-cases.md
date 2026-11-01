@@ -18,3 +18,7 @@ See spec: User Stories 2, 4–10; Modules 2 (Library); HTTP API contract for `PO
 - [x] API tests cover: re-import returns `created: false` and the same Document; each of the three rejections; title fallback; author null
 
 Note: "Highlights untouched" on re-import holds by construction (existing Document returned before any write); an API test for it needs the Highlights endpoints (ticket 05).
+
+## Comments
+
+- Review fix (story 4): a duplicate import (`created: false`) now opens the existing Document in the Reader instead of staying in the Library; the "already in your Library" message is passed as a one-off route notice (history state) and shown at the top of the Reader (not repeated on reload). Concurrent uploads of the same bytes now also return `200 created: false` instead of a 500 (API test added).
