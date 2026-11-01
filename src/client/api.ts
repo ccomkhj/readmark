@@ -20,12 +20,15 @@ export class ApiError extends Error {
   }
 }
 
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
+  throw new ApiError(res.status, body?.error ?? "unknown", body?.message ?? `Request failed (${res.status})`);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init);
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(res.status, body?.error ?? "unknown", body?.message ?? `Request failed (${res.status})`);
-  }
+  await throwIfNotOk(res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -80,6 +83,20 @@ export function putNote(highlightId: string, text: string): Promise<HighlightDto
 
 export function deleteNote(highlightId: string): Promise<HighlightDto> {
   return request(`/highlights/${encodeURIComponent(highlightId)}/note`, { method: "DELETE" });
+}
+
+export type InsightExport = { fileName: string; markdown: string };
+
+/**
+ * The Document's Insight Export: the Markdown exactly as the server rendered
+ * it, plus the server's file name (from `Content-Disposition`).
+ */
+export async function getInsightExport(documentId: string): Promise<InsightExport> {
+  const res = await fetch(`/api/documents/${encodeURIComponent(documentId)}/export`);
+  await throwIfNotOk(res);
+  const fileName = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1];
+  if (!fileName) throw new Error("Export response has no Content-Disposition filename.");
+  return { fileName, markdown: await res.text() };
 }
 
 /** URL of the Document's original PDF bytes, for PDF.js to load. */

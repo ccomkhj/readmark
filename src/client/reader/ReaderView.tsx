@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { DocumentDto } from "../../shared/api-types.ts";
 import { documentFileUrl, getDocument } from "../api.ts";
 import { routeHref } from "../routes.ts";
+import { ExportActions } from "./ExportActions.tsx";
 import { PdfViewer } from "./pdf-viewer.ts";
 
 /** Zoom levels the zoom buttons step through. */
@@ -90,6 +91,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
             </div>
           </>
         )}
+        {document && <ExportActions documentId={documentId} />}
       </header>
 
       {error && (
