@@ -3,15 +3,14 @@
  * A Document's id is the SHA-256 hex of its bytes (ADR-0001). PDF bytes live
  * as files under `<dataDir>/library/<id>.pdf`; everything else in SQLite.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DocumentDto, ImportResultDto } from "../shared/api-types.ts";
 import type { Db } from "./db.ts";
-import { DomainError } from "./domain-error.ts";
+import { documentNotFound, DomainError } from "./domain-error.ts";
 import { extractPdf } from "./pdf-extract.ts";
-
 
 export type Library = {
   /**
@@ -56,7 +55,7 @@ export function createLibrary(db: Db, dataDir: string): Library {
 
   const get = (id: string): DocumentDto => {
     const row = findRow(id);
-    if (!row) throw new DomainError("document_not_found", `No Document with id ${id}`);
+    if (!row) throw documentNotFound(id);
     return toDto(row);
   };
 
@@ -81,12 +80,16 @@ export function createLibrary(db: Db, dataDir: string): Library {
       }
 
       // Write bytes first (atomically), then the rows, so a stored Document
-      // always has its file.
-      const tmp = `${filePath(id)}.tmp`;
+      // always has its file. A unique temp name keeps concurrent imports of the
+      // same bytes apart; both renames land identical bytes.
+      const tmp = `${filePath(id)}.${randomUUID()}.tmp`;
       await writeFile(tmp, bytes);
       await rename(tmp, filePath(id));
 
-      db.transaction(() => {
+      // Re-check inside the transaction: a concurrent import of the same bytes
+      // may have inserted the Document while we were extracting.
+      const created = db.transaction(() => {
+        if (findRow(id)) return false;
         insertDocument.run({
           id,
           title: extracted.title ?? stripExtension(originalFilename),
@@ -96,9 +99,10 @@ export function createLibrary(db: Db, dataDir: string): Library {
           importedAt: new Date().toISOString(),
         });
         extracted.pages.forEach((text, i) => insertPageText.run(id, i + 1, text));
+        return true;
       })();
 
-      return { document: get(id), created: true };
+      return { document: get(id), created };
     },
 
     list() {
@@ -118,7 +122,7 @@ export function createLibrary(db: Db, dataDir: string): Library {
       // Rows first, then bytes (mirror of import), so a stored Document always
       // has its file; a crash in between only leaves an orphan file.
       const { changes } = db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
-      if (changes === 0) throw new DomainError("document_not_found", `No Document with id ${id}`);
+      if (changes === 0) throw documentNotFound(id);
       await rm(filePath(id), { force: true });
     },
   };

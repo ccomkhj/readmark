@@ -13,3 +13,7 @@ export class DomainError extends Error {
     this.name = "DomainError";
   }
 }
+
+export function documentNotFound(id: string): DomainError {
+  return new DomainError("document_not_found", `No Document with id ${id}`);
+}

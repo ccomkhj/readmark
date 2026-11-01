@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import type { HighlightDto } from "../shared/api-types.ts";
 import { compareAnchors, deriveQuote, isAnchorInBounds, type Anchor } from "../shared/page-text.ts";
 import type { Db } from "./db.ts";
-import { DomainError } from "./domain-error.ts";
+import { documentNotFound, DomainError } from "./domain-error.ts";
 
 export type Highlights = {
   /**
@@ -44,7 +44,7 @@ type HighlightRow = {
 export function createHighlights(db: Db): Highlights {
   const requireDocument = (documentId: string): void => {
     const exists = db.prepare(`SELECT 1 FROM documents WHERE id = ?`).get(documentId);
-    if (!exists) throw new DomainError("document_not_found", `No Document with id ${documentId}`);
+    if (!exists) throw documentNotFound(documentId);
   };
 
   const pageTexts = (documentId: string): string[] => {

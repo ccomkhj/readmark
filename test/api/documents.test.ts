@@ -37,6 +37,19 @@ describe("POST /api/documents", () => {
     expect(list).toEqual([first.document]);
   });
 
+  it("two concurrent uploads of identical bytes yield one Document: one 201, one 200", async () => {
+    const t = app.get();
+    const bytes = await readFixture(SAMPLE);
+
+    const responses = await Promise.all([uploadBytes(t, bytes, "a.pdf"), uploadBytes(t, bytes, "b.pdf")]);
+
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 201]);
+    const bodies = await Promise.all(responses.map((r) => r.json()));
+    const id = await fixtureId(SAMPLE);
+    expect(bodies.map((b) => b.document.id)).toEqual([id, id]);
+    expect(await (await t.request("/api/documents")).json()).toHaveLength(1);
+  });
+
   it("falls back to the filename without extension for the title, and a null author, when metadata is absent", async () => {
     const res = await uploadBytes(app.get(), await readFixture(NO_METADATA), "My Reading Notes.v2.pdf");
 
