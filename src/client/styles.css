@@ -26,14 +26,27 @@ body {
   color: var(--muted);
 }
 
+.message.info {
+  color: var(--accent);
+}
+
 .message.error {
   color: #cf222e;
 }
 
 .library {
+  box-sizing: border-box;
+  min-height: 100vh; /* the whole view is the drop target */
   max-width: 760px;
   margin: 0 auto;
   padding: 2rem 1rem;
+}
+
+.library.dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -0.5rem;
+  border-radius: 8px;
+  background: #eef4ff;
 }
 
 .library-header {
