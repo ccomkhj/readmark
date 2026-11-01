@@ -20,6 +20,11 @@ export function documentsRoutes(library: Library): Hono {
 
   routes.get("/:id", (c) => c.json(library.get(c.req.param("id"))));
 
+  routes.delete("/:id", async (c) => {
+    await library.remove(c.req.param("id"));
+    return c.body(null, 204);
+  });
+
   routes.get("/:id/file", async (c) => {
     const bytes = await library.fileBytes(c.req.param("id"));
     return c.body(bytes, 200, { "Content-Type": "application/pdf" });

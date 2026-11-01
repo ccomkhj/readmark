@@ -1,11 +1,11 @@
 /**
- * Library (spec Module 2): import, list, get, and file bytes of Documents.
+ * Library (spec Module 2): import, list, get, file bytes, and remove Documents.
  * A Document's id is the SHA-256 hex of its bytes (ADR-0001). PDF bytes live
  * as files under `<dataDir>/library/<id>.pdf`; everything else in SQLite.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DocumentDto, ImportResultDto } from "../shared/api-types.ts";
 import type { Db } from "./db.ts";
@@ -21,6 +21,11 @@ export type Library = {
   get(id: string): DocumentDto;
   /** Original PDF bytes. Throws `document_not_found`. */
   fileBytes(id: string): Promise<Uint8Array<ArrayBuffer>>;
+  /**
+   * Removes the Document, its page texts and Highlights (schema cascade), and
+   * its stored PDF bytes. Throws `document_not_found`.
+   */
+  remove(id: string): Promise<void>;
 };
 
 type DocumentRow = {
@@ -94,6 +99,14 @@ export function createLibrary(db: Db, dataDir: string): Library {
     async fileBytes(id) {
       get(id);
       return new Uint8Array(await readFile(filePath(id)));
+    },
+
+    async remove(id) {
+      // Rows first, then bytes (mirror of import), so a stored Document always
+      // has its file; a crash in between only leaves an orphan file.
+      const { changes } = db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
+      if (changes === 0) throw new DomainError("document_not_found", `No Document with id ${id}`);
+      await rm(filePath(id), { force: true });
     },
   };
 }
