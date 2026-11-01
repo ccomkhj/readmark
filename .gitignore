@@ -8,3 +8,4 @@ src/client/public/pdfjs/
 # local data dir if READMARK_DATA_DIR points inside the repo
 .data/
 .claude/worktrees/
+demos/
