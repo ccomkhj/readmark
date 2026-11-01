@@ -11,15 +11,30 @@
 export type PdfTextItem = { str: string; hasEOL: boolean } | { type: string };
 
 /**
- * Canonical page text: item strings concatenated in order, with "\n" appended
- * after each item PDF.js marks as end-of-line.
+ * A page's canonical page text plus where each text item starts in it.
+ * `itemStarts[i]` is the offset of the i-th text item (marked-content entries
+ * skipped): the same indexing as PDF.js `TextLayer.textDivs`, so the browser
+ * can map a text-layer element to an offset.
  */
-export function canonicalPageText(items: readonly PdfTextItem[]): string {
+export type PageTextLayout = { text: string; itemStarts: number[] };
+
+/**
+ * Lay out canonical page text: item strings concatenated in order, with "\n"
+ * appended after each item PDF.js marks as end-of-line.
+ */
+export function layoutPageText(items: readonly PdfTextItem[]): PageTextLayout {
   let text = "";
+  const itemStarts: number[] = [];
   for (const item of items) {
     if (!("str" in item)) continue;
+    itemStarts.push(text.length);
     text += item.str;
     if (item.hasEOL) text += "\n";
   }
-  return text;
+  return { text, itemStarts };
+}
+
+/** Canonical page text of a page's PDF.js text items. See `layoutPageText`. */
+export function canonicalPageText(items: readonly PdfTextItem[]): string {
+  return layoutPageText(items).text;
 }
