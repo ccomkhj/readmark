@@ -87,6 +87,7 @@ export class PdfViewer {
   #waiters = new Map<number, Array<(page: RenderedPage) => void>>();
   #scrollFrame = 0;
   #destroyed = false;
+  #untrackSelection: () => void;
 
   /**
    * Load the PDF at `url` and lay out all its pages inside `scroller` (an
@@ -134,6 +135,7 @@ export class PdfViewer {
     });
     this.#observeAll();
     scroller.addEventListener("scroll", this.#onScroll, { passive: true });
+    this.#untrackSelection = trackSelectingLayers(this.#pagesEl);
   }
 
   get pageCount(): number {
@@ -220,6 +222,7 @@ export class PdfViewer {
     this.#destroyed = true;
     this.#observer.disconnect();
     this.#scroller.removeEventListener("scroll", this.#onScroll);
+    this.#untrackSelection();
     cancelAnimationFrame(this.#scrollFrame);
     for (const slot of this.#slots) this.#release(slot);
     this.#listeners.clear();
@@ -393,17 +396,58 @@ function buildRenderedPage(
 
 /**
  * As PDF.js's own viewer does: a block after the text that, while a selection
- * is being dragged (`.selecting`), covers the page so the selection doesn't
- * jump to the end of the page when the pointer is over a gap between spans.
+ * covers its text layer (`.selecting`, see `trackSelectingLayers`), covers the
+ * page so the selection doesn't jump when the pointer is over blank space.
  */
 function addEndOfContent(textLayer: HTMLElement): void {
   const end = document.createElement("div");
   end.className = "endOfContent";
   textLayer.append(end);
-  textLayer.addEventListener("pointerdown", () => {
-    textLayer.classList.add("selecting");
-    window.addEventListener("pointerup", () => textLayer.classList.remove("selecting"), { once: true });
-  });
+}
+
+/**
+ * Port of PDF.js TextLayerBuilder's global selection listener (modern
+ * Chromium / Firefox path): a text layer is `.selecting` while the selection
+ * intersects it, cleared on pointer up. Marking only on pointerdown instead
+ * breaks drags that start in a page margin (no selection starts) or end on
+ * another page's blank area (the selection jumps to the document start).
+ * Returns a function that removes the listeners.
+ */
+function trackSelectingLayers(root: HTMLElement): () => void {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const layers = () => root.querySelectorAll<HTMLElement>(".textLayer");
+  const resetAll = () => layers().forEach((layer) => layer.classList.remove("selecting"));
+  let pointerDown = false;
+  document.addEventListener("pointerdown", () => (pointerDown = true), { signal });
+  document.addEventListener(
+    "pointerup",
+    () => {
+      pointerDown = false;
+      resetAll();
+    },
+    { signal },
+  );
+  window.addEventListener(
+    "blur",
+    () => {
+      pointerDown = false;
+      resetAll();
+    },
+    { signal },
+  );
+  document.addEventListener("keyup", () => !pointerDown && resetAll(), { signal });
+  document.addEventListener(
+    "selectionchange",
+    () => {
+      const selection = document.getSelection();
+      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const active = range && (!range.collapsed || pointerDown) ? range : null;
+      for (const layer of layers()) layer.classList.toggle("selecting", !!active?.intersectsNode(layer));
+    },
+    { signal },
+  );
+  return () => controller.abort();
 }
 
 function clampScale(scale: number): number {
