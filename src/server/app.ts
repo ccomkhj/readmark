@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { openDb } from "./db.ts";
 import { documentsRoutes } from "./http/documents-routes.ts";
 import { handleError } from "./http/errors.ts";
+import { exportRoutes } from "./http/export-routes.ts";
 import { documentHighlightsRoutes, highlightsRoutes } from "./http/highlights-routes.ts";
 import { createHighlights } from "./highlights.ts";
 import { createLibrary } from "./library.ts";
@@ -32,6 +33,7 @@ export function createApp({ dataDir }: AppOptions): App {
   const api = new Hono();
   api.route("/documents", documentsRoutes(library));
   api.route("/documents/:id/highlights", documentHighlightsRoutes(highlights));
+  api.route("/documents/:id/export", exportRoutes(library, highlights));
   api.route("/highlights", highlightsRoutes(highlights));
 
   const app = new Hono();
