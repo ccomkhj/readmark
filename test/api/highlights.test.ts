@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE, type PdfFixture } from "../fixtures/definitions.ts";
-import { fixtureId, importFixture, useTestApp, type TestApp } from "./harness.ts";
+import { SAMPLE, SECOND, type PdfFixture } from "../fixtures/definitions.ts";
+import { createTestApp, fixtureId, importFixture, useTestApp, type TestApp } from "./harness.ts";
 
 const app = useTestApp();
 
@@ -364,5 +364,72 @@ describe("Notes", () => {
 
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("bad_request");
+  });
+});
+
+describe("Highlights in the Library", () => {
+  it("highlightCount in list and get reflects the current number of Highlights", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    await importFixture(t, SECOND);
+    const secondId = await fixtureId(SECOND);
+    const counts = async () => {
+      const list = await (await t.request("/api/documents")).json();
+      const get = await (await t.request(`/api/documents/${id}`)).json();
+      return {
+        list: Object.fromEntries(list.map((d: { id: string; highlightCount: number }) => [d.id, d.highlightCount])),
+        get: get.highlightCount,
+      };
+    };
+
+    const first = await (await createHighlight(t, id, rangeOf(SAMPLE, 1, "Chapter One"))).json();
+    await createHighlight(t, id, rangeOf(SAMPLE, 2, "Chapter Two"));
+    expect(await counts()).toEqual({ list: { [id]: 2, [secondId]: 0 }, get: 2 });
+
+    await t.request(`/api/highlights/${first.id}`, { method: "DELETE" });
+    expect(await counts()).toEqual({ list: { [id]: 1, [secondId]: 0 }, get: 1 });
+  });
+
+  it("removing a Document removes its Highlights; re-importing gives a fresh Document without them", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await putNote(t, highlight.id, { text: "a thought" });
+
+    await t.request(`/api/documents/${documentId}`, { method: "DELETE" });
+    expect((await putNote(t, highlight.id, { text: "x" })).status).toBe(404);
+    const reimport = await (await importFixture(t, SAMPLE)).json();
+
+    expect(reimport).toMatchObject({ created: true, document: { id: documentId, highlightCount: 0 } });
+    expect(await (await t.request(`/api/documents/${documentId}/highlights`)).json()).toEqual([]);
+    // The old range is free again.
+    expect((await createHighlight(t, documentId, rangeOf(SAMPLE, 1, "Chapter One"))).status).toBe(201);
+  });
+
+  it("a new app instance on the same data directory returns the same Highlights and Notes", async () => {
+    const first = app.get();
+    const id = await importSample(first);
+    const crossPage = await (
+      await createHighlight(first, id, {
+        start: rangeOf(SAMPLE, 2, "This sentence").start,
+        end: rangeOf(SAMPLE, 3, "without a break.").end,
+      })
+    ).json();
+    await createHighlight(first, id, rangeOf(SAMPLE, 1, "Chapter One"));
+    await putNote(first, crossPage.id, { text: "line one\n\n> line two" });
+    const before = await (await first.request(`/api/documents/${id}/highlights`)).json();
+    first.stop();
+
+    const second = await createTestApp(first.dataDir);
+    try {
+      const after = await (await second.request(`/api/documents/${id}/highlights`)).json();
+      expect(after).toEqual(before);
+      expect(await listQuotesAndNotes(second, id)).toEqual([
+        ["Chapter One", null],
+        ["This sentence begins on page two and continues on page three without a break.", "line one\n\n> line two"],
+      ]);
+      expect((await (await second.request(`/api/documents/${id}`)).json()).highlightCount).toBe(2);
+    } finally {
+      second.stop();
+    }
   });
 });
