@@ -40,12 +40,12 @@ export function LibraryView() {
       `Remove "${doc.title}" from your Library?\n\nIts Highlights and Notes will be removed too. This cannot be undone.`,
     );
     if (!confirmed) return;
-    setError(null);
+    setNotice(null);
     try {
       await removeDocument(doc.id);
       await refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setNotice({ kind: "error", text: (e as Error).message });
     }
   };
 
