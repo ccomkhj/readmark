@@ -6,13 +6,15 @@ See spec: User Stories 15–20; Modules 6 (Reader UI: Reader view).
 
 **Blocked by:** 01 (Import a PDF and see it in the Library)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Opening a Document from the Library shows its pages, rendered by PDF.js from the Document's file route
-- [ ] Continuous vertical scrolling through all pages; rendering stays responsive on a long Document (e.g. render pages lazily as they near the viewport)
-- [ ] Each page has a text layer aligned with the rendered text, and native text selection works on it
-- [ ] Page indicator shows current page / total, and updates while scrolling
-- [ ] Zoom in/out re-renders pages and text layer in alignment
-- [ ] Go-to-page jumps to the requested page; out-of-range input is clamped or rejected with no crash
-- [ ] The fixture's figure-only page renders
-- [ ] Verified in the browser with Chrome DevTools MCP against a running app and the fixture PDFs
+- [x] Opening a Document from the Library shows its pages, rendered by PDF.js from the Document's file route
+- [x] Continuous vertical scrolling through all pages; rendering stays responsive on a long Document (e.g. render pages lazily as they near the viewport)
+- [x] Each page has a text layer aligned with the rendered text, and native text selection works on it
+- [x] Page indicator shows current page / total, and updates while scrolling
+- [x] Zoom in/out re-renders pages and text layer in alignment
+- [x] Go-to-page jumps to the requested page; out-of-range input is clamped or rejected with no crash
+- [x] The fixture's figure-only page renders
+- [x] Verified in the browser with Chrome DevTools MCP against a running app and the fixture PDFs
+
+_Verification note:_ the DevTools MCP browser was held by another session, so verification drove an isolated headless Chrome over CDP (same protocol) against `npm start` with both fixtures plus a 400-page generated PDF: text-layer alignment screenshots at 50% / 125% / 300%, native mouse selection, page indicator while scrolling, go-to-page with 4 / 99 / 0 / -3 / "abc", figure-only page 4, back to Library, unknown id error. No console errors, no external requests.
