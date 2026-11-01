@@ -284,10 +284,10 @@ a.document-title:hover {
   cursor: default;
 }
 
-/* A Highlight with a Note: deeper tint plus an underline (spec story 37). */
+/* A Highlight with a Note: same color (single highlight color, story 25),
+   marked only by an underline (story 37). */
 .highlight-rect.has-note {
-  background: rgb(255 170 0 / 0.5);
-  box-shadow: inset 0 -2px 0 rgb(214 120 0);
+  box-shadow: inset 0 -2px 0 rgb(160 120 0);
 }
 
 /* The Highlight open in the Note editor. */
