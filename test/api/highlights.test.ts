@@ -240,3 +240,129 @@ describe("overlap and reading order", () => {
     expect((await unknown.json()).error).toBe("document_not_found");
   });
 });
+
+const UNKNOWN_HIGHLIGHT = "00000000-0000-0000-0000-000000000000";
+
+/** Imports SAMPLE and creates one Highlight on "Chapter One"; returns its JSON. */
+async function sampleWithHighlight(t: TestApp) {
+  const id = await importSample(t);
+  const res = await createHighlight(t, id, rangeOf(SAMPLE, 1, "Chapter One"));
+  return { documentId: id, highlight: await res.json() };
+}
+
+function putNote(t: TestApp, highlightId: string, body: unknown): Promise<Response> {
+  return t.request(`/api/highlights/${highlightId}/note`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function listQuotesAndNotes(t: TestApp, documentId: string) {
+  const list = await (await t.request(`/api/documents/${documentId}/highlights`)).json();
+  return list.map((h: { quote: string; note: { text: string } | null }) => [h.quote, h.note?.text ?? null]);
+}
+
+describe("DELETE /api/highlights/:id", () => {
+  it("removes the Highlight and its Note", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await createHighlight(t, documentId, rangeOf(SAMPLE, 1, "the author"));
+    await putNote(t, highlight.id, { text: "why this matters" });
+
+    const res = await t.request(`/api/highlights/${highlight.id}`, { method: "DELETE" });
+
+    expect(res.status).toBe(204);
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([["the author", null]]);
+    // Its Note is gone with it.
+    expect((await putNote(t, highlight.id, { text: "again" })).status).toBe(404);
+  });
+
+  it("returns 404 highlight_not_found for an unknown Highlight", async () => {
+    const res = await app.get().request(`/api/highlights/${UNKNOWN_HIGHLIGHT}`, { method: "DELETE" });
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "highlight_not_found", message: expect.any(String) });
+  });
+
+  it("frees the range for a new Highlight", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await t.request(`/api/highlights/${highlight.id}`, { method: "DELETE" });
+
+    expect((await createHighlight(t, documentId, rangeOf(SAMPLE, 1, "Chapter"))).status).toBe(201);
+  });
+});
+
+describe("Notes", () => {
+  it("PUT creates a Note, stored verbatim with multi-line Markdown", async () => {
+    const t = app.get();
+    const { highlight } = await sampleWithHighlight(t);
+    const text = "  **Key idea**\n\n- reading is dialogue\n- mark what matters  \n";
+
+    const res = await putNote(t, highlight.id, { text });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ...highlight,
+      note: { text, updatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
+    });
+  });
+
+  it("PUT replaces an existing Note", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await putNote(t, highlight.id, { text: "first thought" });
+
+    const res = await putNote(t, highlight.id, { text: "second thought" });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).note.text).toBe("second thought");
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([["Chapter One", "second thought"]]);
+  });
+
+  it("PUT with whitespace-only text removes the Note", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await putNote(t, highlight.id, { text: "a thought" });
+
+    const res = await putNote(t, highlight.id, { text: " \n\t " });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).note).toBeNull();
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([["Chapter One", null]]);
+  });
+
+  it("DELETE removes the Note and returns the Highlight", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+    await putNote(t, highlight.id, { text: "a thought" });
+
+    const res = await t.request(`/api/highlights/${highlight.id}/note`, { method: "DELETE" });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ...highlight, note: null });
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([["Chapter One", null]]);
+  });
+
+  it("returns 404 highlight_not_found for an unknown Highlight", async () => {
+    const t = app.get();
+
+    const put = await putNote(t, UNKNOWN_HIGHLIGHT, { text: "x" });
+    const del = await t.request(`/api/highlights/${UNKNOWN_HIGHLIGHT}/note`, { method: "DELETE" });
+
+    expect([put.status, del.status]).toEqual([404, 404]);
+    expect((await put.json()).error).toBe("highlight_not_found");
+    expect((await del.json()).error).toBe("highlight_not_found");
+  });
+
+  it("PUT returns 400 bad_request without a string `text`", async () => {
+    const t = app.get();
+    const { highlight } = await sampleWithHighlight(t);
+
+    const res = await putNote(t, highlight.id, { text: 42 });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("bad_request");
+  });
+});

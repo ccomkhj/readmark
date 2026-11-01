@@ -17,6 +17,15 @@ export type Highlights = {
   create(documentId: string, start: Anchor, end: Anchor): HighlightDto;
   /** Reading order (by start anchor). Throws `document_not_found`. */
   list(documentId: string): HighlightDto[];
+  /** Removes the Highlight and its Note. Throws `highlight_not_found`. */
+  remove(id: string): void;
+  /**
+   * Creates or replaces the Note, stored verbatim; whitespace-only `text`
+   * removes it. Throws `highlight_not_found`.
+   */
+  putNote(id: string, text: string): HighlightDto;
+  /** Throws `highlight_not_found`. */
+  removeNote(id: string): HighlightDto;
 };
 
 type HighlightRow = {
@@ -88,7 +97,31 @@ export function createHighlights(db: Db): Highlights {
       requireDocument(documentId);
       return listRows(documentId).map(toDto);
     },
+
+    remove(id) {
+      const { changes } = db.prepare(`DELETE FROM highlights WHERE id = ?`).run(id);
+      if (changes === 0) throw notFound(id);
+    },
+
+    putNote(id, text) {
+      if (text.trim() === "") return setNote(id, null);
+      return setNote(id, { text, updatedAt: new Date().toISOString() });
+    },
+
+    removeNote: (id) => setNote(id, null),
   };
+
+  function setNote(id: string, note: { text: string; updatedAt: string } | null): HighlightDto {
+    const { changes } = db
+      .prepare(`UPDATE highlights SET note_text = ?, note_updated_at = ? WHERE id = ?`)
+      .run(note?.text ?? null, note?.updatedAt ?? null, id);
+    if (changes === 0) throw notFound(id);
+    return toDto(find(id)!);
+  }
+}
+
+function notFound(id: string): DomainError {
+  return new DomainError("highlight_not_found", `No Highlight with id ${id}`);
 }
 
 function toDto(row: HighlightRow): HighlightDto {

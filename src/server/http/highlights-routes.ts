@@ -20,6 +20,28 @@ export function documentHighlightsRoutes(highlights: Highlights): Hono {
   return routes;
 }
 
+/** Routes under /api/highlights. */
+export function highlightsRoutes(highlights: Highlights): Hono {
+  const routes = new Hono();
+
+  routes.delete("/:id", (c) => {
+    highlights.remove(c.req.param("id"));
+    return c.body(null, 204);
+  });
+
+  routes.put("/:id/note", async (c) => {
+    const body = await jsonBody(c);
+    if (!isRecord(body) || typeof body["text"] !== "string") {
+      throw new DomainError("bad_request", "Expected a JSON body `{ text: string }`.");
+    }
+    return c.json(highlights.putNote(c.req.param("id"), body["text"]));
+  });
+
+  routes.delete("/:id/note", (c) => c.json(highlights.removeNote(c.req.param("id"))));
+
+  return routes;
+}
+
 function documentId(c: Context): string {
   const id = c.req.param("id");
   if (id === undefined) throw new Error("route mounted without :id");
