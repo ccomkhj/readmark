@@ -7,3 +7,4 @@ coverage/
 src/client/public/pdfjs/
 # local data dir if BOOK_READER_DATA_DIR points inside the repo
 .data/
+.claude/worktrees/
