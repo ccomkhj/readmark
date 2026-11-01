@@ -1,0 +1,3 @@
+# App-owned Highlights; PDFs never modified; Documents identified by content
+
+Highlights and Notes live only in the app's own store (each Highlight keeps its quoted text plus position), and imported PDFs are copied into the Library and never written to. We rejected writing standard PDF annotations because it mutates the reader's file, reduces Notes to popup comments, and loses sentence-level span boundaries. A Document is identified by a hash of its bytes, so moving or deleting the original file is harmless, but a different edition or re-encoded download becomes a new Document and its Highlights do not carry over: an accepted limitation.
