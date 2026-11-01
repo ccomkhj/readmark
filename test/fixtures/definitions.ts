@@ -10,7 +10,9 @@
 export type TextPage = { kind: "text"; lines: string[] };
 /** A page with only vector shapes and no text (a "figure-only" page). */
 export type FigurePage = { kind: "figure" };
-export type FixturePage = TextPage | FigurePage;
+/** A page with only a raster image and no text (like a scanned page). */
+export type ImagePage = { kind: "image" };
+export type FixturePage = TextPage | FigurePage | ImagePage;
 
 export type PdfFixture = {
   kind: "pdf";
@@ -21,7 +23,23 @@ export type PdfFixture = {
   pages: FixturePage[];
 };
 
-export type Fixture = PdfFixture;
+/**
+ * A text PDF protected by the Standard Security Handler (RC4 40-bit, R2) with
+ * a non-empty user password, so it cannot be opened without the password.
+ * Hand-written by the fixture script (pdf-lib cannot encrypt).
+ */
+export type EncryptedPdfFixture = {
+  kind: "encrypted-pdf";
+  fileName: string;
+  userPassword: string;
+  ownerPassword: string;
+  lines: string[];
+};
+
+/** A file that is not a PDF at all, written verbatim. */
+export type RawFixture = { kind: "raw"; fileName: string; content: string };
+
+export type Fixture = PdfFixture | EncryptedPdfFixture | RawFixture;
 
 /**
  * Multi-page text PDF with title/author, a sentence that crosses the
@@ -79,4 +97,36 @@ export const SECOND: PdfFixture = {
   ],
 };
 
-export const FIXTURES: Fixture[] = [SAMPLE, SECOND];
+/** A text PDF with no Info metadata: title falls back to the filename, author is null. */
+export const NO_METADATA: PdfFixture = {
+  kind: "pdf",
+  fileName: "untitled-notes.pdf",
+  metadata: {},
+  pages: [{ kind: "text", lines: ["A document without a title or an author."] }],
+};
+
+/** A PDF whose only content is a raster image: no text layer anywhere. */
+export const IMAGE_ONLY: PdfFixture = {
+  kind: "pdf",
+  fileName: "scanned.pdf",
+  metadata: { title: "A Scanned Book", author: "Nobody" },
+  pages: [{ kind: "image" }, { kind: "image" }],
+};
+
+/** A password-protected PDF. */
+export const ENCRYPTED: EncryptedPdfFixture = {
+  kind: "encrypted-pdf",
+  fileName: "encrypted.pdf",
+  userPassword: "secret",
+  ownerPassword: "owner-secret",
+  lines: ["This text is behind a password."],
+};
+
+/** Plain text with a .pdf extension: not a PDF. */
+export const NOT_A_PDF: RawFixture = {
+  kind: "raw",
+  fileName: "not-a-pdf.pdf",
+  content: "These are plain-text notes, not a PDF.\n",
+};
+
+export const FIXTURES: Fixture[] = [SAMPLE, SECOND, NO_METADATA, IMAGE_ONLY, ENCRYPTED, NOT_A_PDF];

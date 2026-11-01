@@ -14,6 +14,10 @@ import { extractPdf } from "./pdf-extract.ts";
 
 
 export type Library = {
+  /**
+   * Identical bytes already in the Library -> that Document, `created: false`.
+   * Throws `not_a_pdf`, `encrypted_pdf`, `no_text_layer`; nothing is stored then.
+   */
   importPdf(bytes: Uint8Array, originalFilename: string): Promise<ImportResultDto>;
   /** Newest import first. */
   list(): DocumentDto[];
@@ -60,7 +64,16 @@ export function createLibrary(db: Db, dataDir: string): Library {
   return {
     async importPdf(bytes, originalFilename) {
       const id = createHash("sha256").update(bytes).digest("hex");
+      // Same bytes = same Document (ADR-0001): return it untouched.
+      if (findRow(id)) return { document: get(id), created: false };
+
       const extracted = await extractPdf(bytes);
+      if (!extracted.pages.some((text) => /\S/.test(text))) {
+        throw new DomainError(
+          "no_text_layer",
+          "This PDF has no selectable text (it may be scanned or image-only), so it can't be highlighted.",
+        );
+      }
 
       // Write bytes first (atomically), then the rows, so a stored Document
       // always has its file.

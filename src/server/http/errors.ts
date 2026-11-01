@@ -7,6 +7,9 @@ import { DomainError } from "../domain-error.ts";
 const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
   bad_request: 400,
   document_not_found: 404,
+  not_a_pdf: 422,
+  encrypted_pdf: 422,
+  no_text_layer: 422,
 };
 
 export function errorResponse(c: Context, code: ErrorCode, message: string): Response {
