@@ -4,6 +4,7 @@ import { ApiError, documentFileUrl, getDocument } from "../api.ts";
 import { routeHref } from "../routes.ts";
 import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
+import { NoteEditor } from "./NoteEditor.tsx";
 import { PdfViewer } from "./pdf-viewer.ts";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
 import { useHighlights } from "./use-highlights.ts";
@@ -28,7 +29,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(DEFAULT_SCALE);
-  const { highlights, loadError, create } = useHighlights(documentId);
+  const { highlights, loadError, create, ...highlightActions } = useHighlights(documentId);
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,8 +65,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
   }, [document]);
 
   useEffect(() => {
-    if (viewer && highlights) return drawHighlightOverlays(viewer, highlights);
-  }, [viewer, highlights]);
+    if (viewer && highlights) return drawHighlightOverlays(viewer, highlights, activeHighlightId);
+  }, [viewer, highlights, activeHighlightId]);
 
   const createHighlight = async (start: Anchor, end: Anchor) => {
     setHighlightError(null);
@@ -128,6 +130,15 @@ export function ReaderView({ documentId }: { documentId: string }) {
       <div className="reader-body">
         <div className="reader-scroll" ref={scrollRef} />
         {viewer && <SelectionHighlighter viewer={viewer} onCreate={createHighlight} />}
+        {viewer && highlights && (
+          <NoteEditor
+            viewer={viewer}
+            highlights={highlights}
+            activeId={activeHighlightId}
+            onActiveChange={setActiveHighlightId}
+            actions={highlightActions}
+          />
+        )}
       </div>
     </div>
   );

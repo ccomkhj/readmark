@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Anchor, HighlightDto } from "../../shared/api-types.ts";
 import { compareAnchors } from "../../shared/page-text.ts";
-import { createHighlight, listHighlights } from "../api.ts";
+import { createHighlight, deleteHighlight, deleteNote, listHighlights, putNote } from "../api.ts";
 
 export type HighlightsState = {
   /** The Document's Highlights in reading order; null while loading. */
@@ -10,6 +10,12 @@ export type HighlightsState = {
   loadError: string | null;
   /** Create a Highlight via the API and add it to `highlights`. Rejects with ApiError. */
   create(start: Anchor, end: Anchor): Promise<HighlightDto>;
+  /** Create or replace a Highlight's Note (text verbatim; whitespace-only removes it). Rejects with ApiError. */
+  setNote(id: string, text: string): Promise<HighlightDto>;
+  /** Remove a Highlight's Note. Rejects with ApiError. */
+  clearNote(id: string): Promise<HighlightDto>;
+  /** Delete a Highlight (its Note goes with it) and drop it from `highlights`. Rejects with ApiError. */
+  remove(id: string): Promise<void>;
 };
 
 /**
@@ -42,9 +48,24 @@ export function useHighlights(documentId: string): HighlightsState {
     [documentId],
   );
 
-  return { highlights, loadError, create };
+  const setNote = useCallback(async (id: string, text: string) => replace(setHighlights, await putNote(id, text)), []);
+
+  const clearNote = useCallback(async (id: string) => replace(setHighlights, await deleteNote(id)), []);
+
+  const remove = useCallback(async (id: string) => {
+    await deleteHighlight(id);
+    setHighlights((list) => list && list.filter((h) => h.id !== id));
+  }, []);
+
+  return { highlights, loadError, create, setNote, clearNote, remove };
 }
 
 function readingOrder(a: HighlightDto, b: HighlightDto): number {
   return compareAnchors(a.start, b.start);
+}
+
+/** Swap in the server's updated copy of a Highlight (same anchors, so order holds). */
+function replace(setHighlights: (f: (list: HighlightDto[] | null) => HighlightDto[] | null) => void, updated: HighlightDto) {
+  setHighlights((list) => list && list.map((h) => (h.id === updated.id ? updated : h)));
+  return updated;
 }

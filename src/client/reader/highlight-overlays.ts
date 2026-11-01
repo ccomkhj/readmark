@@ -13,18 +13,27 @@ import type { PdfViewer, RenderedPage } from "./pdf-viewer.ts";
 
 const LAYER_CLASS = "highlight-layer";
 const RECT_CLASS = "highlight-rect";
+/** On rects of a Highlight that has a Note (styled differently, spec story 37). */
+const HAS_NOTE_CLASS = "has-note";
+/** On rects of the Highlight open in the Note editor. */
+const ACTIVE_CLASS = "active";
 
 /**
  * Keep overlays in sync with `highlights` on every rendered page, now and on
  * each future page render. Returns a cleanup that stops listening; call it and
- * call again whenever `highlights` changes.
+ * call again whenever `highlights` or `activeId` changes. Highlights with a
+ * Note and the active one (open in the Note editor) get marker classes.
  */
-export function drawHighlightOverlays(viewer: PdfViewer, highlights: readonly HighlightDto[]): () => void {
+export function drawHighlightOverlays(
+  viewer: PdfViewer,
+  highlights: readonly HighlightDto[],
+  activeId: string | null = null,
+): () => void {
   for (let n = 1; n <= viewer.pageCount; n++) {
     const page = viewer.renderedPage(n);
-    if (page) drawPage(page, highlights);
+    if (page) drawPage(page, highlights, activeId);
   }
-  return viewer.on("pageRendered", (page) => drawPage(page, highlights));
+  return viewer.on("pageRendered", (page) => drawPage(page, highlights, activeId));
 }
 
 /**
@@ -45,7 +54,7 @@ export function highlightIdAt(viewer: PdfViewer, clientX: number, clientY: numbe
   return null;
 }
 
-function drawPage(page: RenderedPage, highlights: readonly HighlightDto[]): void {
+function drawPage(page: RenderedPage, highlights: readonly HighlightDto[], activeId: string | null): void {
   let layer = page.element.querySelector<HTMLElement>(`:scope > .${LAYER_CLASS}`);
   if (!layer) {
     layer = document.createElement("div");
@@ -70,6 +79,8 @@ function drawPage(page: RenderedPage, highlights: readonly HighlightDto[]): void
       const r = range.getBoundingClientRect();
       const el = document.createElement("div");
       el.className = RECT_CLASS;
+      el.classList.toggle(HAS_NOTE_CLASS, highlight.note !== null);
+      el.classList.toggle(ACTIVE_CLASS, highlight.id === activeId);
       el.dataset.highlightId = highlight.id;
       el.style.left = `${r.left - origin.left}px`;
       el.style.top = `${r.top - origin.top}px`;
