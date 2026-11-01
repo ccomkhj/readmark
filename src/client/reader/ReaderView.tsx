@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Anchor, DocumentDto } from "../../shared/api-types.ts";
 import { ApiError, documentFileUrl, getDocument } from "../api.ts";
 import { routeHref } from "../routes.ts";
+import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { PdfViewer } from "./pdf-viewer.ts";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
@@ -110,6 +111,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
             </div>
           </>
         )}
+        {document && <ExportActions documentId={documentId} />}
       </header>
 
       {error && (
