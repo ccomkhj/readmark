@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { HighlightDto } from "../../shared/api-types.ts";
+import { pageReference } from "../../shared/page-reference.ts";
 import { highlightIdAt } from "./highlight-overlays.ts";
 import { noteSaveAction } from "./note-draft.ts";
 import type { PdfViewer } from "./pdf-viewer.ts";
@@ -89,13 +90,10 @@ function Panel({ highlight, actions, onClose }: { highlight: HighlightDto; actio
     }
   };
 
-  const page =
-    highlight.start.page === highlight.end.page ? `p. ${highlight.start.page}` : `pp. ${highlight.start.page}–${highlight.end.page}`;
-
   return (
     <section className="note-editor" aria-label="Note">
       <header className="note-editor-header">
-        <span className="note-editor-page">{page}</span>
+        <span className="note-editor-page">{pageReference(highlight.start, highlight.end)}</span>
         <button type="button" className="note-editor-close" onClick={onClose} aria-label="Close Note editor">
           ×
         </button>

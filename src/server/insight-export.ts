@@ -4,6 +4,7 @@
  * the PDF. Deterministic: no timestamps, no randomness.
  */
 import type { DocumentDto, HighlightDto } from "../shared/api-types.ts";
+import { pageReference } from "../shared/page-reference.ts";
 
 export type InsightExport = { fileName: string; markdown: string };
 
@@ -25,8 +26,7 @@ export function insightExport(
 }
 
 function highlightBlock(h: HighlightDto): string {
-  const pages = h.start.page === h.end.page ? `p. ${h.start.page}` : `pp. ${h.start.page}–${h.end.page}`;
-  const parts = [`**${pages}**`, `> ${h.quote}`];
+  const parts = [`**${pageReference(h.start, h.end)}**`, `> ${h.quote}`];
   // Verbatim, except trailing whitespace, so the output ends with exactly one newline.
   if (h.note) parts.push(`**Note:** ${h.note.text.trimEnd()}`);
   return parts.join("\n\n");
