@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDto } from "../../shared/api-types.ts";
-import { importDocument, listDocuments } from "../api.ts";
+import { importDocument, listDocuments, removeDocument } from "../api.ts";
 
 type Notice = { kind: "info" | "error"; text: string };
 
@@ -32,6 +32,20 @@ export function LibraryView() {
     } finally {
       setImporting(false);
       if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  const onRemove = async (doc: DocumentDto) => {
+    const confirmed = window.confirm(
+      `Remove "${doc.title}" from your Library?\n\nIts Highlights and Notes will be removed too. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setError(null);
+    try {
+      await removeDocument(doc.id);
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
     }
   };
 
@@ -88,6 +102,14 @@ export function LibraryView() {
                 <span>{plural(doc.pageCount, "page")}</span>
                 <span>{plural(doc.highlightCount, "highlight")}</span>
               </div>
+              <button
+                type="button"
+                className="remove-button"
+                aria-label={`Remove ${doc.title}`}
+                onClick={() => onRemove(doc)}
+              >
+                Remove
+              </button>
             </li>
           ))}
         </ul>
