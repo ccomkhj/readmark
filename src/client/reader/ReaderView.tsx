@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { Anchor, DocumentDto } from "../../shared/api-types.ts";
 import { ApiError, documentFileUrl, getDocument } from "../api.ts";
 import { clearRouteNotice, routeHref, routeNotice } from "../routes.ts";
 import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { HighlightsSidebar } from "./HighlightsSidebar.tsx";
-import { NoteEditor } from "./NoteEditor.tsx";
 import { PdfViewer } from "./pdf-viewer.ts";
+import { ReaderToast, type ReaderMessage } from "./ReaderToast.tsx";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
 import { useHighlights } from "./use-highlights.ts";
 
 /** Zoom levels the zoom buttons step through. */
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 const DEFAULT_SCALE = 1.25;
+/** How long a Highlight jumped to from the sidebar stays emphasized. */
+const FLASH_MS = 1000;
 
 /**
  * Reader view: one Document's pages in a continuous scroll (PdfViewer), with
@@ -20,23 +22,38 @@ const DEFAULT_SCALE = 1.25;
  *
  * Layout: `.reader-toolbar` (back, title, page nav, zoom; feature actions go
  * at its end) above `.reader-body`, a row holding the `.reader-scroll`
- * page area; a sidebar can sit beside it in that row. Features that need the
- * pages (selection mapping, Highlight overlays, scroll-to) take `viewer`.
+ * page area and the Highlights sidebar (which holds the Note editor). Until the
+ * first page renders, a loading state covers the page area; if the Document
+ * can't be opened, an error state replaces it. Messages show in a toast over
+ * the pages. Features that need the pages (selection mapping, Highlight
+ * overlays, scroll-to) take `viewer`.
  */
 export function ReaderView({ documentId }: { documentId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<DocumentDto | null>(null);
   const [viewer, setViewer] = useState<PdfViewer | null>(null);
+  /** The Document couldn't be opened (metadata or PDF). */
   const [error, setError] = useState<string | null>(null);
+  /** A page has rendered (or failed to): the loading state can go. */
+  const [firstPageShown, setFirstPageShown] = useState(false);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const { highlights, loadError, create, ...highlightActions } = useHighlights(documentId);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
-  const [highlightError, setHighlightError] = useState<string | null>(null);
-  // e.g. "already in your Library" after a duplicate import (story 5).
-  const [notice] = useState(routeNotice);
+  /** A Highlight jumped to from the sidebar, emphasized for FLASH_MS. A new object re-flashes the same id. */
+  const [flash, setFlash] = useState<{ id: string } | null>(null);
+  // Starts with e.g. "already in your Library" after a duplicate import (story 5).
+  const [message, setMessage] = useState<ReaderMessage | null>(() => {
+    const notice = routeNotice();
+    return notice ? { kind: "info", text: notice } : null;
+  });
+  const dismissMessage = useCallback(() => setMessage(null), []);
 
   useEffect(clearRouteNotice, []);
+
+  useEffect(() => {
+    if (loadError) setMessage({ kind: "error", text: `Could not load Highlights: ${loadError}` });
+  }, [loadError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +68,9 @@ export function ReaderView({ documentId }: { documentId: string }) {
         if (!v) return;
         if (cancelled) return v.destroy();
         opened = v;
+        const shown = () => setFirstPageShown(true);
+        v.on("pageRendered", shown);
+        v.on("pageError", shown);
         v.on("pageChange", setPage);
         v.on("scaleChange", setScale);
         setViewer(v);
@@ -70,16 +90,24 @@ export function ReaderView({ documentId }: { documentId: string }) {
   }, [doc]);
 
   useEffect(() => {
-    if (viewer && highlights) return drawHighlightOverlays(viewer, highlights, activeHighlightId);
-  }, [viewer, highlights, activeHighlightId]);
+    if (viewer && highlights) return drawHighlightOverlays(viewer, highlights, activeHighlightId, flash?.id);
+  }, [viewer, highlights, activeHighlightId, flash]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [flash]);
 
   const createHighlight = async (start: Anchor, end: Anchor) => {
-    setHighlightError(null);
     try {
       await create(start, end);
+      setMessage(null);
     } catch (e) {
       // Whitespace-only selections offer no action, but stay silent on empty_highlight anyway (story 29).
-      if (!(e instanceof ApiError && e.code === "empty_highlight")) setHighlightError(highlightErrorMessage(e));
+      if (!(e instanceof ApiError && e.code === "empty_highlight")) {
+        setMessage({ kind: "error", text: highlightErrorMessage(e) });
+      }
       throw e;
     }
   };
@@ -104,7 +132,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
         </h1>
         {viewer && (
           <>
-            <PageNav viewer={viewer} page={page} />
+            <PageNav viewer={viewer} page={page} onJumped={() => viewer.scrollContainer.focus({ preventScroll: true })} />
             <div className="reader-zoom" role="group" aria-label="Zoom">
               <button type="button" onClick={() => zoom(-1)} disabled={scale <= ZOOM_STEPS[0]!} aria-label="Zoom out">
                 −
@@ -121,32 +149,33 @@ export function ReaderView({ documentId }: { documentId: string }) {
         {doc && <ExportActions documentId={documentId} />}
       </header>
 
-      {notice && (
-        <p className="message info reader-message" role="status">
-          {notice}
-        </p>
-      )}
-      {error && (
-        <p className="message error reader-message" role="alert">
-          {error}
-        </p>
-      )}
-      {(highlightError ?? loadError) && (
-        <p className="message error reader-message" role="alert">
-          {highlightError ?? `Could not load Highlights: ${loadError}`}
-        </p>
-      )}
-
       <div className="reader-body">
-        <div className="reader-scroll" ref={scrollRef} />
+        <div className="reader-pages">
+          {/* Focusable so focus can leave the toolbar for the pages (keyboard scrolling, H shortcut). */}
+          <div className="reader-scroll" ref={scrollRef} tabIndex={-1} />
+          {error ? (
+            <div className="reader-status error" role="alert">
+              <p>Could not open this Document: {error}</p>
+              <a href={routeHref({ view: "library" })}>Back to Library</a>
+            </div>
+          ) : (
+            !firstPageShown && (
+              <div className="reader-status" role="status">
+                <p>{doc ? `Loading ${doc.title}…` : "Loading…"}</p>
+              </div>
+            )
+          )}
+          {/* No toast over the error state: it already says why (and Highlights would fail too). */}
+          <ReaderToast message={error ? null : message} onDismiss={dismissMessage} />
+        </div>
         {viewer && <SelectionHighlighter viewer={viewer} onCreate={createHighlight} />}
-        {viewer && <HighlightsSidebar viewer={viewer} highlights={highlights} />}
-        {viewer && highlights && (
-          <NoteEditor
+        {viewer && (
+          <HighlightsSidebar
             viewer={viewer}
             highlights={highlights}
             activeId={activeHighlightId}
             onActiveChange={setActiveHighlightId}
+            onJumped={(id) => setFlash({ id })}
             actions={highlightActions}
           />
         )}
@@ -164,16 +193,20 @@ function highlightErrorMessage(e: unknown): string {
 
 /**
  * Current page / total, editable to jump. Out-of-range numbers are clamped;
- * non-numbers are rejected (the field resets to the current page).
+ * non-numbers are rejected (the field resets to the current page). After a
+ * jump, `onJumped` takes focus away from the field (so shortcuts work again).
  */
-function PageNav({ viewer, page }: { viewer: PdfViewer; page: number }) {
+function PageNav({ viewer, page, onJumped }: { viewer: PdfViewer; page: number; onJumped: () => void }) {
   const [draft, setDraft] = useState<string | null>(null);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const requested = Number.parseInt(draft ?? "", 10);
-    if (Number.isFinite(requested)) viewer.scrollToPage(requested);
     setDraft(null);
+    if (Number.isFinite(requested)) {
+      viewer.scrollToPage(requested);
+      onJumped();
+    }
   };
 
   return (

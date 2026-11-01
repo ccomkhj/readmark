@@ -1,59 +1,42 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { HighlightDto } from "../../shared/api-types.ts";
 import { pageReference } from "../../shared/page-reference.ts";
-import { highlightIdAt } from "./highlight-overlays.ts";
 import { noteSaveAction } from "./note-draft.ts";
-import type { PdfViewer } from "./pdf-viewer.ts";
 import type { HighlightsState } from "./use-highlights.ts";
 
-type Actions = Pick<HighlightsState, "setNote" | "clearNote" | "remove">;
-
-/**
- * Note editor panel. A plain click on a Highlight in the pages (not the end of
- * a text selection) makes it the active Highlight and opens this panel with its
- * quote and Note; a click elsewhere in the pages closes it. The Note saves on
- * blur and on Cmd/Ctrl+Enter (Escape saves and closes). The panel also deletes
- * the Highlight. Active-Highlight state is owned by the caller so the overlays
- * can mark it.
- */
-export function NoteEditor({
-  viewer,
-  highlights,
-  activeId,
-  onActiveChange,
-  actions,
-}: {
-  viewer: PdfViewer;
-  highlights: readonly HighlightDto[];
-  activeId: string | null;
-  onActiveChange: (id: string | null) => void;
-  actions: Actions;
-}) {
-  useEffect(() => {
-    const scroller = viewer.scrollContainer;
-    const onClick = (e: Event) => {
-      const { clientX, clientY } = e as MouseEvent;
-      if (!window.getSelection()?.isCollapsed) return;
-      onActiveChange(highlightIdAt(viewer, clientX, clientY));
-    };
-    scroller.addEventListener("click", onClick);
-    return () => scroller.removeEventListener("click", onClick);
-  }, [viewer, onActiveChange]);
-
-  const highlight = highlights.find((h) => h.id === activeId);
-  if (!highlight) return null;
-  return <Panel key={highlight.id} highlight={highlight} actions={actions} onClose={() => onActiveChange(null)} />;
-}
+export type NoteActions = Pick<HighlightsState, "setNote" | "clearNote" | "remove">;
 
 type Status = { kind: "idle" | "saving" | "saved" } | { kind: "error"; message: string };
 
-function Panel({ highlight, actions, onClose }: { highlight: HighlightDto; actions: Actions; onClose: () => void }) {
+/**
+ * Note editor for the active Highlight, shown in place of its Highlights
+ * sidebar entry: page reference, quote, Note text and Delete Highlight. The
+ * Note saves on blur and on Cmd/Ctrl+Enter (Escape saves and closes); a
+ * whitespace-only Note removes it. Mount with `key={highlight.id}` so each
+ * Highlight starts from its own saved Note. Takes focus on mount.
+ */
+export function NoteEditor({
+  highlight,
+  actions,
+  onClose,
+}: {
+  highlight: HighlightDto;
+  actions: NoteActions;
+  onClose: () => void;
+}) {
   const [draft, setDraft] = useState(highlight.note?.text ?? "");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const savedText = highlight.note?.text ?? null;
 
-  useEffect(() => textareaRef.current?.focus(), []);
+  // The sidebar scrolls the editor into view itself.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus({ preventScroll: true });
+    // Continue an existing Note rather than typing in front of it.
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, []);
 
   /** Save the draft if it changed; resolves false if saving failed. */
   const save = async (): Promise<boolean> => {

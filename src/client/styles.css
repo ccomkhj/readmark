@@ -201,13 +201,18 @@ a.document-title:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.reader-message {
-  padding: 0 1rem;
-}
-
 .reader-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+}
+
+/* The page area: the scroll container plus what floats over it (loading /
+   error state, message toast), positioned against this box. */
+.reader-pages {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
 }
 
@@ -216,6 +221,76 @@ a.document-title:hover {
   min-width: 0;
   overflow: auto;
   background: #e4e7eb;
+}
+
+/* Focused only programmatically (after go-to-page), to take focus off the toolbar. */
+.reader-scroll:focus {
+  outline: none;
+}
+
+.reader-status {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  background: #e4e7eb;
+}
+
+.reader-status p {
+  margin: 0;
+}
+
+.reader-status.error p {
+  color: var(--danger);
+}
+
+.reader-status a {
+  color: var(--accent);
+}
+
+/* Message toast (src/client/reader/ReaderToast.tsx): over the top of the pages, no layout shift. */
+.reader-toasts {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 15;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 2rem);
+}
+
+.reader-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+}
+
+.reader-toast.error {
+  color: var(--danger);
+  border-left-color: var(--danger);
+}
+
+.reader-toast-close {
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
 }
 
 /* PdfViewer DOM (src/client/reader/pdf-viewer.ts). Gap must match PAGE_GAP there. */
@@ -267,7 +342,7 @@ a.document-title:hover {
 
 .highlight-action {
   position: fixed;
-  z-index: 10;
+  z-index: 20; /* above the message toast */
   padding: 0.25rem 0.625rem;
   font: inherit;
   font-size: 0.875rem;
@@ -285,9 +360,11 @@ a.document-title:hover {
 }
 
 /* A Highlight with a Note: same color (single highlight color, story 25),
-   marked only by an underline (story 37). */
+   marked only by an underline (story 37). Drawn just below the rect, not
+   inside it, so it doesn't strike through the glyphs at low zoom; it thickens
+   with the zoom (--scale-factor is set on .pdf-pages) to stay visible at 300%. */
 .highlight-rect.has-note {
-  box-shadow: inset 0 -2px 0 rgb(160 120 0);
+  box-shadow: 0 max(2px, 1.5px * var(--scale-factor, 1)) 0 rgb(130 90 0);
 }
 
 /* The Highlight open in the Note editor. */
@@ -295,22 +372,32 @@ a.document-title:hover {
   outline: 2px solid var(--accent);
 }
 
-/* Note editor panel (src/client/reader/NoteEditor.tsx): floats bottom-left over the pages. */
+/* A Highlight just jumped to from the sidebar: a brief pulse so the eye finds it. */
+.highlight-rect.flash {
+  animation: highlight-flash 1s ease-out;
+}
+
+@keyframes highlight-flash {
+  0%,
+  60% {
+    outline: 3px solid var(--accent);
+    outline-offset: 4px;
+  }
+  100% {
+    outline-offset: 0;
+  }
+}
+
+/* Note editor (src/client/reader/NoteEditor.tsx): the active Highlight's
+   sidebar entry, expanded in place. */
 .note-editor {
-  position: fixed;
-  left: 1rem;
-  bottom: 1rem;
-  z-index: 20;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: min(24rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 6rem);
-  padding: 0.75rem;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  padding: 0.75rem 1rem;
+  background: #f4f8ff;
+  border-left: 3px solid var(--accent);
+  border-bottom: 1px solid var(--border);
 }
 
 .note-editor-header,

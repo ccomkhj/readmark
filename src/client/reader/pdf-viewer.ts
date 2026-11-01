@@ -10,7 +10,8 @@
  * sidebar scroll-to):
  * - `renderedPage(n)` / `whenRendered(n)` give a page's text-layer elements,
  *   each with its start offset in the canonical page text.
- * - `on("pageRendered" | "pageReleased", ...)` to (re)draw / drop overlays.
+ * - `on("pageRendered" | "pageReleased", ...)` to (re)draw / drop overlays;
+ *   `on("pageError", ...)` when a page could not be rendered.
  *   A page is re-rendered (new elements) after every zoom change.
  * - `scrollToPage(n, y)` scrolls to a point on a page.
  * - `pageElement(n)` is a positioned container overlays can be appended to.
@@ -52,6 +53,8 @@ type ViewerEvents = {
   pageRendered: RenderedPage;
   /** A page's canvas and text layer were removed (scrolled away or zoom changed). */
   pageReleased: number;
+  /** A page failed to render (it shows an error message in place of its content). */
+  pageError: number;
 };
 
 type Listener<T> = (value: T) => void;
@@ -347,6 +350,7 @@ export class PdfViewer {
       if (stale() || isCancellation(error)) return;
       console.error(`Failed to render page ${slot.pageNumber}`, error);
       slot.element.classList.add("pdf-page-error");
+      this.#emit("pageError", slot.pageNumber);
       return;
     }
     const rendered = slot.rendered;
