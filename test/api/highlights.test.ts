@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE, SECOND, type PdfFixture } from "../fixtures/definitions.ts";
+import { FURNISHED, SAMPLE, SECOND, type PdfFixture } from "../fixtures/definitions.ts";
 import { createTestApp, fixtureId, importFixture, useTestApp, type TestApp } from "./harness.ts";
 
 const app = useTestApp();
@@ -46,6 +46,7 @@ describe("POST /api/documents/:id/highlights", () => {
       documentId: id,
       start: range.start,
       end: range.end,
+      segments: [range],
       quote: "a conversation with the author",
       note: null,
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
@@ -238,6 +239,100 @@ describe("overlap and reading order", () => {
     const unknown = await t.request(`/api/documents/${"0".repeat(64)}/highlights`);
     expect(unknown.status).toBe(404);
     expect((await unknown.json()).error).toBe("document_not_found");
+  });
+});
+
+describe("page furniture (running headers, footers, page numbers)", () => {
+  async function importFurnished(t: TestApp): Promise<string> {
+    await importFixture(t, FURNISHED);
+    return fixtureId(FURNISHED);
+  }
+
+  it("leaves furniture out of the quote and the segments of a range crossing a page break", async () => {
+    const t = app.get();
+    const id = await importFurnished(t);
+    const first = rangeOf(FURNISHED, 2, "This sentence starts on page two and");
+    const second = rangeOf(FURNISHED, 3, "ends on page three after the furniture.");
+
+    const res = await createHighlight(t, id, { start: first.start, end: second.end });
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      start: first.start,
+      end: second.end,
+      quote: "This sentence starts on page two and ends on page three after the furniture.",
+      segments: [first, second],
+    });
+  });
+
+  it("lists Highlights with the same furniture-free segments", async () => {
+    const t = app.get();
+    const id = await importFurnished(t);
+    const first = rangeOf(FURNISHED, 2, "This sentence starts on page two and");
+    const second = rangeOf(FURNISHED, 3, "ends on page three");
+    await createHighlight(t, id, { start: first.start, end: second.end });
+
+    const list = await (await t.request(`/api/documents/${id}/highlights`)).json();
+
+    expect(list.map((h: { segments: unknown }) => h.segments)).toEqual([[first, second]]);
+  });
+
+  it("removes a bare page number and a header the range starts inside", async () => {
+    const t = app.get();
+    const id = await importFurnished(t);
+    const start = { page: 4, offset: "4 CHAP".length };
+    const end = { page: 4, offset: pageText(FURNISHED, 4).length };
+
+    const res = await createHighlight(t, id, { start, end });
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      quote: "The last page also has a bare page number.",
+      segments: [rangeOf(FURNISHED, 4, "The last page also has a bare page number.")],
+    });
+  });
+
+  it.each([
+    ["a running header naming a section once", rangeOf(FURNISHED, 3, "ON TABLES AND CHAIRS 3")],
+    ["a watermark footer", rangeOf(FURNISHED, 1, "Prepared exclusively for a test reader")],
+    [
+      "the footer and header between two pages",
+      {
+        start: { page: 2, offset: rangeOf(FURNISHED, 2, "page two and").end.offset },
+        end: rangeOf(FURNISHED, 3, "ends").start,
+      },
+    ],
+  ])("rejects a selection of only furniture (%s) with 422 empty_highlight", async (_, range) => {
+    const t = app.get();
+    const id = await importFurnished(t);
+
+    const res = await createHighlight(t, id, range);
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("empty_highlight");
+  });
+
+  it("keeps body text that merely looks like furniture", async () => {
+    const t = app.get();
+    const id = await importFurnished(t);
+    const range = rangeOf(FURNISHED, 1, "Chapter One");
+
+    const res = await createHighlight(t, id, range);
+
+    expect(await res.json()).toMatchObject({ quote: "Chapter One", segments: [range] });
+  });
+
+  it("strips nothing from a Document of one or two pages", async () => {
+    const t = app.get();
+    await importFixture(t, SECOND);
+    const id = await fixtureId(SECOND);
+
+    const res = await createHighlight(t, id, {
+      start: { page: 1, offset: 0 },
+      end: { page: 2, offset: pageText(SECOND, 2).length },
+    });
+
+    expect((await res.json()).quote).toBe("Preface Every book in the Library has its own identity. The end.");
   });
 });
 

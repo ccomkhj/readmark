@@ -97,6 +97,57 @@ export const SECOND: PdfFixture = {
   ],
 };
 
+/**
+ * A book-like Document with page furniture on every page: a running header
+ * that carries the printed page number (odd pages name a different section
+ * each time, so only the page number repeats), a watermark footer, and a bare
+ * page number on page 4. A sentence crosses the page 2 -> page 3 break, with
+ * the footer and the next header in between.
+ */
+export const FURNISHED: PdfFixture = {
+  kind: "pdf",
+  fileName: "furnished.pdf",
+  metadata: { title: "A Furnished Book", author: "Thomas Chippendale" },
+  pages: [
+    {
+      kind: "text",
+      lines: [
+        "THE FURNISHED BOOK 1",
+        "Chapter One",
+        "Running heads and footers repeat on every page.",
+        "Prepared exclusively for a test reader",
+      ],
+    },
+    {
+      kind: "text",
+      lines: [
+        "2 CHAPTER ONE",
+        "Page furniture is not part of the text.",
+        "This sentence starts on page two and",
+        "Prepared exclusively for a test reader",
+      ],
+    },
+    {
+      kind: "text",
+      lines: [
+        "ON TABLES AND CHAIRS 3",
+        "ends on page three after the furniture.",
+        "Tables and chairs are not page furniture.",
+        "Prepared exclusively for a test reader",
+      ],
+    },
+    {
+      kind: "text",
+      lines: [
+        "4 CHAPTER ONE",
+        "The last page also has a bare page number.",
+        "4",
+        "Prepared exclusively for a test reader",
+      ],
+    },
+  ],
+};
+
 /** A text PDF with no Info metadata: title falls back to the filename, author is null. */
 export const NO_METADATA: PdfFixture = {
   kind: "pdf",
@@ -129,4 +180,4 @@ export const NOT_A_PDF: RawFixture = {
   content: "These are plain-text notes, not a PDF.\n",
 };
 
-export const FIXTURES: Fixture[] = [SAMPLE, SECOND, NO_METADATA, IMAGE_ONLY, ENCRYPTED, NOT_A_PDF];
+export const FIXTURES: Fixture[] = [SAMPLE, SECOND, FURNISHED, NO_METADATA, IMAGE_ONLY, ENCRYPTED, NOT_A_PDF];
