@@ -19,6 +19,13 @@ const app = createApp({ dataDir });
 if (existsSync(CLIENT_DIR)) {
   // serveStatic resolves `root` against the cwd.
   const root = relative(process.cwd(), CLIENT_DIR) || ".";
+  // Hashed bundles never change; everything else (index.html) must be
+  // revalidated, or a rebuilt app keeps loading the old bundle.
+  app.use("/*", async (c, next) => {
+    await next();
+    const immutable = c.req.path.startsWith("/assets/");
+    c.header("Cache-Control", immutable ? "public, max-age=31536000, immutable" : "no-cache");
+  });
   app.use("/*", serveStatic({ root }));
   app.get("*", serveStatic({ root, path: "index.html" }));
 }
