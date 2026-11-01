@@ -6,11 +6,11 @@ See spec: User Stories 13–14; Modules 2 (Library: remove); HTTP API contract f
 
 **Blocked by:** 01 (Import a PDF and see it in the Library)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `DELETE /api/documents/:id` returns `204`; afterwards `GET /api/documents/:id` is `404 document_not_found`, its file route no longer serves bytes, and it is absent from the list
-- [ ] Removal deletes the stored PDF bytes and page texts (the schema cascades from the Document so later Highlight data goes with it)
-- [ ] Re-importing a removed PDF creates a fresh Document (`201`, `created: true`)
-- [ ] Library UI offers remove per Document behind a confirmation that says its Highlights and Notes will be removed too; cancelling does nothing
-- [ ] API test: a new app instance pointed at the same data directory returns the same Library (ids, titles, order)
-- [ ] API tests cover remove and re-import after remove
+- [x] `DELETE /api/documents/:id` returns `204`; afterwards `GET /api/documents/:id` is `404 document_not_found`, its file route no longer serves bytes, and it is absent from the list
+- [x] Removal deletes the stored PDF bytes and page texts (the schema cascades from the Document so later Highlight data goes with it)
+- [x] Re-importing a removed PDF creates a fresh Document (`201`, `created: true`)
+- [x] Library UI offers remove per Document behind a confirmation that says its Highlights and Notes will be removed too; cancelling does nothing
+- [x] API test: a new app instance pointed at the same data directory returns the same Library (ids, titles, order)
+- [x] API tests cover remove and re-import after remove

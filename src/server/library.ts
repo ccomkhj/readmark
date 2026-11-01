@@ -1,11 +1,11 @@
 /**
- * Library (spec Module 2): import, list, get, and file bytes of Documents.
+ * Library (spec Module 2): import, list, get, file bytes, and remove Documents.
  * A Document's id is the SHA-256 hex of its bytes (ADR-0001). PDF bytes live
  * as files under `<dataDir>/library/<id>.pdf`; everything else in SQLite.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DocumentDto, ImportResultDto } from "../shared/api-types.ts";
 import type { Db } from "./db.ts";
@@ -14,6 +14,10 @@ import { extractPdf } from "./pdf-extract.ts";
 
 
 export type Library = {
+  /**
+   * Identical bytes already in the Library -> that Document, `created: false`.
+   * Throws `not_a_pdf`, `encrypted_pdf`, `no_text_layer`; nothing is stored then.
+   */
   importPdf(bytes: Uint8Array, originalFilename: string): Promise<ImportResultDto>;
   /** Newest import first. */
   list(): DocumentDto[];
@@ -21,6 +25,11 @@ export type Library = {
   get(id: string): DocumentDto;
   /** Original PDF bytes. Throws `document_not_found`. */
   fileBytes(id: string): Promise<Uint8Array<ArrayBuffer>>;
+  /**
+   * Removes the Document, its page texts and Highlights (schema cascade), and
+   * its stored PDF bytes. Throws `document_not_found`.
+   */
+  remove(id: string): Promise<void>;
 };
 
 type DocumentRow = {
@@ -60,7 +69,16 @@ export function createLibrary(db: Db, dataDir: string): Library {
   return {
     async importPdf(bytes, originalFilename) {
       const id = createHash("sha256").update(bytes).digest("hex");
+      // Same bytes = same Document (ADR-0001): return it untouched.
+      if (findRow(id)) return { document: get(id), created: false };
+
       const extracted = await extractPdf(bytes);
+      if (!extracted.pages.some((text) => /\S/.test(text))) {
+        throw new DomainError(
+          "no_text_layer",
+          "This PDF has no selectable text (it may be scanned or image-only), so it can't be highlighted.",
+        );
+      }
 
       // Write bytes first (atomically), then the rows, so a stored Document
       // always has its file.
@@ -94,6 +112,14 @@ export function createLibrary(db: Db, dataDir: string): Library {
     async fileBytes(id) {
       get(id);
       return new Uint8Array(await readFile(filePath(id)));
+    },
+
+    async remove(id) {
+      // Rows first, then bytes (mirror of import), so a stored Document always
+      // has its file; a crash in between only leaves an orphan file.
+      const { changes } = db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
+      if (changes === 0) throw new DomainError("document_not_found", `No Document with id ${id}`);
+      await rm(filePath(id), { force: true });
     },
   };
 }

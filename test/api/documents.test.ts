@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE, SECOND } from "../fixtures/definitions.ts";
-import { fixtureId, importFixture, readFixture, useTestApp } from "./harness.ts";
+import { ENCRYPTED, IMAGE_ONLY, NOT_A_PDF, NO_METADATA, SAMPLE, SECOND, type Fixture } from "../fixtures/definitions.ts";
+import { fixtureId, importFixture, readFixture, uploadBytes, useTestApp } from "./harness.ts";
 
 const app = useTestApp();
 const UNKNOWN_ID = "0".repeat(64);
@@ -23,6 +23,42 @@ describe("POST /api/documents", () => {
       },
     });
     expect(Number.isNaN(Date.parse(body.document.importedAt))).toBe(false);
+  });
+
+  it("re-importing identical bytes returns the existing Document without a duplicate", async () => {
+    const t = app.get();
+    const first = await (await importFixture(t, SAMPLE)).json();
+
+    const res = await uploadBytes(t, await readFixture(SAMPLE), "renamed copy.pdf");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ created: false, document: first.document });
+    const list = await (await t.request("/api/documents")).json();
+    expect(list).toEqual([first.document]);
+  });
+
+  it("falls back to the filename without extension for the title, and a null author, when metadata is absent", async () => {
+    const res = await uploadBytes(app.get(), await readFixture(NO_METADATA), "My Reading Notes.v2.pdf");
+
+    expect(res.status).toBe(201);
+    const { document } = await res.json();
+    expect(document.title).toBe("My Reading Notes.v2");
+    expect(document.author).toBeNull();
+  });
+
+  it.each<[string, Fixture, string]>([
+    ["a file that is not a PDF", NOT_A_PDF, "not_a_pdf"],
+    ["a password-protected PDF", ENCRYPTED, "encrypted_pdf"],
+    ["a PDF with no text layer", IMAGE_ONLY, "no_text_layer"],
+  ])("rejects %s with 422 and adds nothing", async (_, fixture, code) => {
+    const t = app.get();
+
+    const res = await importFixture(t, fixture);
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: code, message: expect.any(String) });
+    expect(await (await t.request("/api/documents")).json()).toEqual([]);
+    expect((await t.request(`/api/documents/${await fixtureId(fixture)}`)).status).toBe(404);
   });
 });
 

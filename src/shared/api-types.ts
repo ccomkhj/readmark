@@ -15,7 +15,12 @@ export type DocumentDto = {
 export type ImportResultDto = { document: DocumentDto; created: boolean };
 
 /** Stable error codes. Add new codes here; the HTTP layer maps each to a status. */
-export type ErrorCode = "document_not_found" | "bad_request";
+export type ErrorCode =
+  | "document_not_found"
+  | "bad_request"
+  | "not_a_pdf"
+  | "encrypted_pdf"
+  | "no_text_layer";
 
 /** Body of every non-2xx API response. */
 export type ApiErrorBody = { error: ErrorCode; message: string };

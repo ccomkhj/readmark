@@ -29,14 +29,27 @@ body {
   color: var(--muted);
 }
 
+.message.info {
+  color: var(--accent);
+}
+
 .message.error {
   color: #cf222e;
 }
 
 .library {
+  box-sizing: border-box;
+  min-height: 100vh; /* the whole view is the drop target */
   max-width: 760px;
   margin: 0 auto;
   padding: 2rem 1rem;
+}
+
+.library.dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -0.5rem;
+  border-radius: 8px;
+  background: #eef4ff;
 }
 
 .library-header {
@@ -55,6 +68,10 @@ body {
 }
 
 .document-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
 }
@@ -65,6 +82,17 @@ body {
 
 .document-title {
   font-weight: 600;
+}
+
+.document-row .remove-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: #cf222e;
+  cursor: pointer;
 }
 
 .document-meta {
