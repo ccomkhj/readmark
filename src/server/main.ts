@@ -31,7 +31,7 @@ if (existsSync(CLIENT_DIR)) {
 }
 
 const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) => {
-  console.log(`Book Reader on http://${HOST}:${info.port}  (data: ${dataDir})`);
+  console.log(`Readmark on http://${HOST}:${info.port}  (data: ${dataDir})`);
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

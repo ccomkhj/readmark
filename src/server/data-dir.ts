@@ -2,11 +2,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /** Environment variable that overrides the data directory (tests use a temp dir). */
-export const DATA_DIR_ENV = "BOOK_READER_DATA_DIR";
+export const DATA_DIR_ENV = "READMARK_DATA_DIR";
 
-const APP_NAME = "book-reader";
+const APP_NAME = "readmark";
 
-/** The data dir: `$BOOK_READER_DATA_DIR`, else the per-user app data dir for this OS. */
+/** The data dir: `$READMARK_DATA_DIR`, else the per-user app data dir for this OS. */
 export function resolveDataDir(env: NodeJS.ProcessEnv = process.env): string {
   const override = env[DATA_DIR_ENV];
   if (override) return override;

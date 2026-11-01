@@ -27,7 +27,7 @@ export type TestApp = {
 
 /** Start an app instance on `dataDir`, or on a fresh temp dir if omitted. */
 export async function createTestApp(dataDir?: string): Promise<TestApp> {
-  const dir = dataDir ?? (await mkdtemp(join(tmpdir(), "book-reader-test-")));
+  const dir = dataDir ?? (await mkdtemp(join(tmpdir(), "readmark-test-")));
   const app: App = createApp({ dataDir: dir });
   let stopped = false;
   const stop = () => {

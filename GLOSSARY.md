@@ -1,4 +1,4 @@
-# Book Reader
+# Readmark
 
 A personal reading tool: the reader marks passages in PDFs, attaches their own thoughts, and exports the result as source material an agent can summarize.
 

@@ -15,7 +15,7 @@ import { createHighlights } from "./highlights.ts";
 import { createLibrary } from "./library.ts";
 
 export type AppOptions = {
-  /** Holds `book-reader.sqlite` and `library/<id>.pdf`. Created if missing. */
+  /** Holds `readmark.sqlite` and `library/<id>.pdf`. Created if missing. */
   dataDir: string;
 };
 
@@ -26,7 +26,7 @@ export type App = Hono & {
 
 export function createApp({ dataDir }: AppOptions): App {
   mkdirSync(dataDir, { recursive: true });
-  const db = openDb(join(dataDir, "book-reader.sqlite"));
+  const db = openDb(join(dataDir, "readmark.sqlite"));
   const library = createLibrary(db, dataDir);
   const highlights = createHighlights(db);
 

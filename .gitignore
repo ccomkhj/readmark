@@ -5,6 +5,6 @@ coverage/
 .DS_Store
 # PDF.js assets copied from node_modules by scripts/copy-pdfjs-assets.ts
 src/client/public/pdfjs/
-# local data dir if BOOK_READER_DATA_DIR points inside the repo
+# local data dir if READMARK_DATA_DIR points inside the repo
 .data/
 .claude/worktrees/

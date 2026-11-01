@@ -28,8 +28,8 @@ const LINE_HEIGHT = 24;
 async function renderPdf(fixture: PdfFixture): Promise<Uint8Array> {
   const pdf = await PDFDocument.create({ updateMetadata: false });
   const font = await pdf.embedFont(StandardFonts.Helvetica);
-  pdf.setProducer("book-reader fixtures");
-  pdf.setCreator("book-reader fixtures");
+  pdf.setProducer("readmark fixtures");
+  pdf.setCreator("readmark fixtures");
   pdf.setCreationDate(FIXED_DATE);
   pdf.setModificationDate(FIXED_DATE);
   if (fixture.metadata.title !== undefined) pdf.setTitle(fixture.metadata.title);

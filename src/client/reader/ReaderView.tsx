@@ -83,9 +83,9 @@ export function ReaderView({ documentId }: { documentId: string }) {
   }, [documentId]);
 
   useEffect(() => {
-    if (doc) document.title = `${doc.title} · Book Reader`;
+    if (doc) document.title = `${doc.title} · Readmark`;
     return () => {
-      document.title = "Book Reader";
+      document.title = "Readmark";
     };
   }, [doc]);
 
