@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Library } from "../library.ts";
-import { errorResponse } from "./errors.ts";
+import { DomainError } from "../domain-error.ts";
 
 /** Routes under /api/documents. Thin: parse request, call Library, pick status. */
 export function documentsRoutes(library: Library): Hono {
@@ -10,7 +10,7 @@ export function documentsRoutes(library: Library): Hono {
     const form = await c.req.parseBody();
     const file = form["file"];
     if (!(file instanceof File)) {
-      return errorResponse(c, "bad_request", "Expected a multipart upload with a `file` field.");
+      throw new DomainError("bad_request", "Expected a multipart upload with a `file` field.");
     }
     const result = await library.importPdf(new Uint8Array(await file.arrayBuffer()), file.name);
     return c.json(result, result.created ? 201 : 200);

@@ -44,6 +44,9 @@ export type CreateHighlightBody = { start: Anchor; end: Anchor };
 /** Body of `PUT /api/highlights/:id/note`. Whitespace-only text removes the Note. */
 export type PutNoteBody = { text: string };
 
+/** An Insight Export. `GET /api/documents/:id/export` sends `markdown` as the body and `fileName` in `Content-Disposition`. */
+export type InsightExport = { fileName: string; markdown: string };
+
 /** Stable error codes. Add new codes here; the HTTP layer maps each to a status. */
 export type ErrorCode =
   | "document_not_found"

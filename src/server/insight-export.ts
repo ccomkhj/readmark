@@ -3,10 +3,8 @@
  * (with Notes, in reading order) -> Markdown. Uses stored quotes only, never
  * the PDF. Deterministic: no timestamps, no randomness.
  */
-import type { DocumentDto, HighlightDto } from "../shared/api-types.ts";
+import type { DocumentDto, HighlightDto, InsightExport } from "../shared/api-types.ts";
 import { pageReference } from "../shared/page-reference.ts";
-
-export type InsightExport = { fileName: string; markdown: string };
 
 const CONTEXT_LINE = "These are a reader's Highlights and Notes from this document, in reading order.";
 const NO_HIGHLIGHTS = "*No highlights yet.*";

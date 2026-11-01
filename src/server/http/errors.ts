@@ -16,7 +16,7 @@ const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
   no_text_layer: 422,
 };
 
-export function errorResponse(c: Context, code: ErrorCode, message: string): Response {
+function errorResponse(c: Context, code: ErrorCode, message: string): Response {
   const body: ApiErrorBody = { error: code, message };
   return c.json(body, STATUS[code]);
 }

@@ -4,8 +4,11 @@ import type {
   ApiErrorBody,
   DocumentDto,
   ErrorCode,
+  CreateHighlightBody,
   HighlightDto,
   ImportResultDto,
+  InsightExport,
+  PutNoteBody,
 } from "../shared/api-types.ts";
 
 /** A non-2xx API response. `code` is the stable error code from the server. */
@@ -68,7 +71,7 @@ export function listHighlights(documentId: string): Promise<HighlightDto[]> {
  * `invalid_range`, `empty_highlight`, `overlapping_highlight`, `document_not_found`.
  */
 export function createHighlight(documentId: string, start: Anchor, end: Anchor): Promise<HighlightDto> {
-  return request(`/documents/${encodeURIComponent(documentId)}/highlights`, json("POST", { start, end }));
+  return request(`/documents/${encodeURIComponent(documentId)}/highlights`, json("POST", { start, end } satisfies CreateHighlightBody));
 }
 
 /** Deletes the Highlight and its Note. */
@@ -78,14 +81,12 @@ export function deleteHighlight(highlightId: string): Promise<void> {
 
 /** Creates or replaces the Note (verbatim); whitespace-only text removes it. */
 export function putNote(highlightId: string, text: string): Promise<HighlightDto> {
-  return request(`/highlights/${encodeURIComponent(highlightId)}/note`, json("PUT", { text }));
+  return request(`/highlights/${encodeURIComponent(highlightId)}/note`, json("PUT", { text } satisfies PutNoteBody));
 }
 
 export function deleteNote(highlightId: string): Promise<HighlightDto> {
   return request(`/highlights/${encodeURIComponent(highlightId)}/note`, { method: "DELETE" });
 }
-
-export type InsightExport = { fileName: string; markdown: string };
 
 /**
  * The Document's Insight Export: the Markdown exactly as the server rendered
