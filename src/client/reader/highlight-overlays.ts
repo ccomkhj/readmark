@@ -17,23 +17,28 @@ const RECT_CLASS = "highlight-rect";
 const HAS_NOTE_CLASS = "has-note";
 /** On rects of the Highlight open in the Note editor. */
 const ACTIVE_CLASS = "active";
+/** On rects of a Highlight just jumped to, so the eye finds it (a short CSS animation). */
+const FLASH_CLASS = "flash";
 
 /**
  * Keep overlays in sync with `highlights` on every rendered page, now and on
  * each future page render. Returns a cleanup that stops listening; call it and
- * call again whenever `highlights` or `activeId` changes. Highlights with a
- * Note and the active one (open in the Note editor) get marker classes.
+ * call again whenever `highlights`, `activeId` or `flashId` changes. Highlights
+ * with a Note, the active one (open in the Note editor) and the flashed one
+ * get marker classes.
  */
 export function drawHighlightOverlays(
   viewer: PdfViewer,
   highlights: readonly HighlightDto[],
   activeId: string | null = null,
+  flashId: string | null = null,
 ): () => void {
+  const marks = { activeId, flashId };
   for (let n = 1; n <= viewer.pageCount; n++) {
     const page = viewer.renderedPage(n);
-    if (page) drawPage(page, highlights, activeId);
+    if (page) drawPage(page, highlights, marks);
   }
-  return viewer.on("pageRendered", (page) => drawPage(page, highlights, activeId));
+  return viewer.on("pageRendered", (page) => drawPage(page, highlights, marks));
 }
 
 /**
@@ -54,7 +59,11 @@ export function highlightIdAt(viewer: PdfViewer, clientX: number, clientY: numbe
   return null;
 }
 
-function drawPage(page: RenderedPage, highlights: readonly HighlightDto[], activeId: string | null): void {
+function drawPage(
+  page: RenderedPage,
+  highlights: readonly HighlightDto[],
+  { activeId, flashId }: { activeId: string | null; flashId: string | null },
+): void {
   let layer = page.element.querySelector<HTMLElement>(`:scope > .${LAYER_CLASS}`);
   if (!layer) {
     layer = document.createElement("div");
@@ -81,6 +90,7 @@ function drawPage(page: RenderedPage, highlights: readonly HighlightDto[], activ
       el.className = RECT_CLASS;
       el.classList.toggle(HAS_NOTE_CLASS, highlight.note !== null);
       el.classList.toggle(ACTIVE_CLASS, highlight.id === activeId);
+      el.classList.toggle(FLASH_CLASS, highlight.id === flashId);
       el.dataset.highlightId = highlight.id;
       el.style.left = `${r.left - origin.left}px`;
       el.style.top = `${r.top - origin.top}px`;
