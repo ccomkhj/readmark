@@ -15,6 +15,29 @@ export function routeHref(route: Route): string {
   return route.view === "reader" ? `#/documents/${encodeURIComponent(route.documentId)}` : "#/";
 }
 
+/** History state a `navigate` call leaves for the target view. */
+type RouteState = { notice?: string };
+
+/**
+ * Go to `route`. `notice` is a one-off message for the target view to show
+ * (read it with `routeNotice`, then drop it with `clearRouteNotice`), so it
+ * is not shown again on reload.
+ */
+export function navigate(route: Route, notice?: string): void {
+  window.history.pushState({ notice } satisfies RouteState, "", routeHref(route));
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
+/** The notice the current history entry was navigated to with, if any. Pure. */
+export function routeNotice(): string | null {
+  return (window.history.state as RouteState | null)?.notice ?? null;
+}
+
+/** Drop the current history entry's notice (the URL stays). */
+export function clearRouteNotice(): void {
+  window.history.replaceState(null, "");
+}
+
 /** The current route; re-renders on navigation. */
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(window.location.hash));

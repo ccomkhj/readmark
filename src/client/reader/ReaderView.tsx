@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Anchor, DocumentDto } from "../../shared/api-types.ts";
 import { ApiError, documentFileUrl, getDocument } from "../api.ts";
-import { routeHref } from "../routes.ts";
+import { clearRouteNotice, routeHref, routeNotice } from "../routes.ts";
 import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { HighlightsSidebar } from "./HighlightsSidebar.tsx";
@@ -25,7 +25,7 @@ const DEFAULT_SCALE = 1.25;
  */
 export function ReaderView({ documentId }: { documentId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [document, setDocument] = useState<DocumentDto | null>(null);
+  const [doc, setDoc] = useState<DocumentDto | null>(null);
   const [viewer, setViewer] = useState<PdfViewer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -33,14 +33,18 @@ export function ReaderView({ documentId }: { documentId: string }) {
   const { highlights, loadError, create, ...highlightActions } = useHighlights(documentId);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
   const [highlightError, setHighlightError] = useState<string | null>(null);
+  // e.g. "already in your Library" after a duplicate import (story 5).
+  const [notice] = useState(routeNotice);
+
+  useEffect(clearRouteNotice, []);
 
   useEffect(() => {
     let cancelled = false;
     let opened: PdfViewer | null = null;
     getDocument(documentId)
-      .then((doc) => {
+      .then((loaded) => {
         if (cancelled) return;
-        setDocument(doc);
+        setDoc(loaded);
         return PdfViewer.open(scrollRef.current!, documentFileUrl(documentId), { scale: DEFAULT_SCALE });
       })
       .then((v) => {
@@ -59,11 +63,11 @@ export function ReaderView({ documentId }: { documentId: string }) {
   }, [documentId]);
 
   useEffect(() => {
-    if (document) window.document.title = `${document.title} · Book Reader`;
+    if (doc) document.title = `${doc.title} · Book Reader`;
     return () => {
-      window.document.title = "Book Reader";
+      document.title = "Book Reader";
     };
-  }, [document]);
+  }, [doc]);
 
   useEffect(() => {
     if (viewer && highlights) return drawHighlightOverlays(viewer, highlights, activeHighlightId);
@@ -95,8 +99,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
         <a className="reader-back" href={routeHref({ view: "library" })}>
           ← Library
         </a>
-        <h1 className="reader-title" title={document?.title}>
-          {document?.title ?? (error ? "" : "Loading…")}
+        <h1 className="reader-title" title={doc?.title}>
+          {doc?.title ?? (error ? "" : "Loading…")}
         </h1>
         {viewer && (
           <>
@@ -114,9 +118,14 @@ export function ReaderView({ documentId }: { documentId: string }) {
             </div>
           </>
         )}
-        {document && <ExportActions documentId={documentId} />}
+        {doc && <ExportActions documentId={documentId} />}
       </header>
 
+      {notice && (
+        <p className="message info reader-message" role="status">
+          {notice}
+        </p>
+      )}
       {error && (
         <p className="message error reader-message" role="alert">
           {error}

@@ -30,14 +30,14 @@ export function NoteEditor({
   actions: Actions;
 }) {
   useEffect(() => {
-    const scroller = viewer.pageElement(1).closest(".reader-scroll");
+    const scroller = viewer.scrollContainer;
     const onClick = (e: Event) => {
       const { clientX, clientY } = e as MouseEvent;
       if (!window.getSelection()?.isCollapsed) return;
       onActiveChange(highlightIdAt(viewer, clientX, clientY));
     };
-    scroller?.addEventListener("click", onClick);
-    return () => scroller?.removeEventListener("click", onClick);
+    scroller.addEventListener("click", onClick);
+    return () => scroller.removeEventListener("click", onClick);
   }, [viewer, onActiveChange]);
 
   const highlight = highlights.find((h) => h.id === activeId);
@@ -82,7 +82,9 @@ function Panel({ highlight, actions, onClose }: { highlight: HighlightDto; actio
   };
 
   const deleteHighlight = async () => {
-    if (savedText !== null && !window.confirm("Delete this Highlight and its Note?")) return;
+    // Confirm when there is a Note to lose: saved, or typed but not saved yet.
+    const hasNote = savedText !== null || draft.trim() !== "";
+    if (hasNote && !window.confirm("Delete this Highlight and its Note?")) return;
     try {
       await actions.remove(highlight.id);
     } catch (e) {
@@ -117,7 +119,13 @@ function Panel({ highlight, actions, onClose }: { highlight: HighlightDto; actio
         <span className={`note-editor-status${status.kind === "error" ? " error" : ""}`} role="status">
           {status.kind === "saving" ? "Saving…" : status.kind === "saved" ? "Saved" : status.kind === "error" ? status.message : ""}
         </span>
-        <button type="button" className="note-editor-delete" onClick={() => void deleteHighlight()}>
+        <button
+          type="button"
+          className="note-editor-delete"
+          // Keep focus in the textarea: its blur would save the draft just before deleting.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => void deleteHighlight()}
+        >
           Delete Highlight
         </button>
       </footer>

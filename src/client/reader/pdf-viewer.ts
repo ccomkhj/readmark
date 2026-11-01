@@ -14,6 +14,7 @@
  *   A page is re-rendered (new elements) after every zoom change.
  * - `scrollToPage(n, y)` scrolls to a point on a page.
  * - `pageElement(n)` is a positioned container overlays can be appended to.
+ * - `scrollContainer` is the element that scrolls (for scroll/click listeners).
  */
 import { layoutPageText, type PdfTextItem } from "../../shared/page-text.ts";
 import { loadPdf, pdfjs } from "../pdf/pdfjs.ts";
@@ -144,6 +145,11 @@ export class PdfViewer {
 
   get scale(): number {
     return this.#scale;
+  }
+
+  /** The scroll container passed to `open` (holds all pages). */
+  get scrollContainer(): HTMLElement {
+    return this.#scroller;
   }
 
   /** 1-based page currently under the top part of the viewport. */

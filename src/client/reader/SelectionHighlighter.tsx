@@ -42,18 +42,18 @@ export function SelectionHighlighter({
       pointerDown = false;
       update();
     };
-    const scroller = viewer.pageElement(1).closest(".reader-scroll");
+    const scroller = viewer.scrollContainer;
     document.addEventListener("selectionchange", update);
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("pointerup", onPointerUp);
-    scroller?.addEventListener("scroll", update, { passive: true });
+    scroller.addEventListener("scroll", update, { passive: true });
     const offRendered = viewer.on("pageRendered", update);
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("selectionchange", update);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointerup", onPointerUp);
-      scroller?.removeEventListener("scroll", update);
+      scroller.removeEventListener("scroll", update);
       offRendered();
     };
   }, [viewer]);

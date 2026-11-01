@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDto } from "../../shared/api-types.ts";
 import { importDocument, listDocuments, removeDocument } from "../api.ts";
-import { routeHref } from "../routes.ts";
+import { navigate, routeHref } from "../routes.ts";
 
 type Notice = { kind: "info" | "error"; text: string };
 
@@ -25,7 +25,11 @@ export function LibraryView() {
     setNotice(null);
     try {
       const { document, created } = await importDocument(file);
-      if (!created) setNotice({ kind: "info", text: `"${document.title}" is already in your Library.` });
+      if (!created) {
+        // Story 4: open the existing Document (with its Highlights) instead of a duplicate.
+        navigate({ view: "reader", documentId: document.id }, `"${document.title}" is already in your Library.`);
+        return;
+      }
       await refresh();
     } catch (e) {
       // Server rejection messages (not_a_pdf, encrypted_pdf, no_text_layer) are written for people.
