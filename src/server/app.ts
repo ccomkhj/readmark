@@ -9,6 +9,8 @@ import { Hono } from "hono";
 import { openDb } from "./db.ts";
 import { documentsRoutes } from "./http/documents-routes.ts";
 import { handleError } from "./http/errors.ts";
+import { documentHighlightsRoutes } from "./http/highlights-routes.ts";
+import { createHighlights } from "./highlights.ts";
 import { createLibrary } from "./library.ts";
 
 export type AppOptions = {
@@ -25,9 +27,11 @@ export function createApp({ dataDir }: AppOptions): App {
   mkdirSync(dataDir, { recursive: true });
   const db = openDb(join(dataDir, "book-reader.sqlite"));
   const library = createLibrary(db, dataDir);
+  const highlights = createHighlights(db);
 
   const api = new Hono();
   api.route("/documents", documentsRoutes(library));
+  api.route("/documents/:id/highlights", documentHighlightsRoutes(highlights));
 
   const app = new Hono();
   app.onError(handleError);

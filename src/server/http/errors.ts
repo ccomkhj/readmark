@@ -7,6 +7,10 @@ import { DomainError } from "../domain-error.ts";
 const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
   bad_request: 400,
   document_not_found: 404,
+  highlight_not_found: 404,
+  invalid_range: 422,
+  empty_highlight: 422,
+  overlapping_highlight: 409,
 };
 
 export function errorResponse(c: Context, code: ErrorCode, message: string): Response {
