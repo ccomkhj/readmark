@@ -11,6 +11,9 @@ const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
   invalid_range: 422,
   empty_highlight: 422,
   overlapping_highlight: 409,
+  not_a_pdf: 422,
+  encrypted_pdf: 422,
+  no_text_layer: 422,
 };
 
 export function errorResponse(c: Context, code: ErrorCode, message: string): Response {

@@ -51,7 +51,10 @@ export type ErrorCode =
   | "highlight_not_found"
   | "invalid_range"
   | "empty_highlight"
-  | "overlapping_highlight";
+  | "overlapping_highlight"
+  | "not_a_pdf"
+  | "encrypted_pdf"
+  | "no_text_layer";
 
 /** Body of every non-2xx API response. */
 export type ApiErrorBody = { error: ErrorCode; message: string };
