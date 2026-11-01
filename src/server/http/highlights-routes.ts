@@ -15,6 +15,8 @@ export function documentHighlightsRoutes(highlights: Highlights): Hono {
     return c.json(highlights.create(documentId(c), body["start"], body["end"]), 201);
   });
 
+  routes.get("/", (c) => c.json(highlights.list(documentId(c))));
+
   return routes;
 }
 

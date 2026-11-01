@@ -168,3 +168,75 @@ describe("POST /api/documents/:id/highlights", () => {
     expect((await res.json()).error).toBe("bad_request");
   });
 });
+
+describe("overlap and reading order", () => {
+  it("rejects a range sharing a character with an existing Highlight with 409 overlapping_highlight", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    await createHighlight(t, id, rangeOf(SAMPLE, 1, "a conversation with"));
+
+    for (const text of ["is a conversation", "with the author", "conversation", "Reading is a conversation with the"]) {
+      const res = await createHighlight(t, id, rangeOf(SAMPLE, 1, text));
+      expect(res.status, text).toBe(409);
+      expect(await res.json()).toEqual({ error: "overlapping_highlight", message: expect.any(String) });
+    }
+  });
+
+  it("detects overlap with a Highlight that crosses a page break", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    await createHighlight(t, id, {
+      start: rangeOf(SAMPLE, 2, "page two and").start,
+      end: rangeOf(SAMPLE, 3, "continues").end,
+    });
+
+    const res = await createHighlight(t, id, rangeOf(SAMPLE, 3, "continues on page"));
+
+    expect(res.status).toBe(409);
+  });
+
+  it("allows touching ranges (one ends where the other starts)", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    const first = rangeOf(SAMPLE, 1, "Reading is ");
+    await createHighlight(t, id, first);
+
+    const res = await createHighlight(t, id, { start: first.end, end: rangeOf(SAMPLE, 1, "a conversation").end });
+
+    expect(res.status).toBe(201);
+  });
+
+  it("lists Highlights by start anchor regardless of creation order", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    for (const [page, text] of [
+      [3, "Chapter Three"],
+      [1, "the author"],
+      [2, "active thinking"],
+      [1, "Chapter One"],
+    ] as const) {
+      expect((await createHighlight(t, id, rangeOf(SAMPLE, page, text))).status).toBe(201);
+    }
+
+    const res = await t.request(`/api/documents/${id}/highlights`);
+
+    expect(res.status).toBe(200);
+    const list = await res.json();
+    expect(list.map((h: { quote: string }) => h.quote)).toEqual([
+      "Chapter One",
+      "the author",
+      "active thinking",
+      "Chapter Three",
+    ]);
+  });
+
+  it("lists nothing for a Document without Highlights, and 404 for an unknown Document", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+
+    expect(await (await t.request(`/api/documents/${id}/highlights`)).json()).toEqual([]);
+    const unknown = await t.request(`/api/documents/${"0".repeat(64)}/highlights`);
+    expect(unknown.status).toBe(404);
+    expect((await unknown.json()).error).toBe("document_not_found");
+  });
+});
