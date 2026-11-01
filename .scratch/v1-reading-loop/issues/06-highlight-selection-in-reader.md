@@ -6,14 +6,19 @@ See spec: User Stories 21–29; Anchors and reading order (Browser selection map
 
 **Blocked by:** 04 (Reader view), 05 (Highlights & Notes API)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Selection mapping: each text-layer element corresponds to one PDF.js text item with a known start offset in the canonical page text (same shared Page Text module as the server); a selection endpoint maps to item start offset + offset within the item
-- [ ] Endpoints landing outside a text item (between elements, on line-break elements, on page whitespace) snap to the nearest item boundary in the direction that shrinks the selection
-- [ ] Highlight button appears near a non-empty selection; a keyboard shortcut does the same; both create the Highlight via the API
-- [ ] Whitespace-only selections create nothing (no button, or a no-op), with no error
-- [ ] `409 overlapping_highlight` (and any other API error) shows a clear message; the selection is not turned into a Highlight
-- [ ] Highlights render as overlays in a single color, correctly placed at every zoom level and across page breaks
-- [ ] After reload, Highlights reappear in the same place
-- [ ] Library Highlight count reflects new Highlights
-- [ ] Verified with Chrome DevTools MCP against a running app and the fixture PDFs: a single-line, a multi-line, and a cross-page selection each produce a Highlight whose quote (API) exactly matches the selected text; an overlapping selection is blocked with a message; Highlights reappear in place after reload
+- [x] Selection mapping: each text-layer element corresponds to one PDF.js text item with a known start offset in the canonical page text (same shared Page Text module as the server); a selection endpoint maps to item start offset + offset within the item
+- [x] Endpoints landing outside a text item (between elements, on line-break elements, on page whitespace) snap to the nearest item boundary in the direction that shrinks the selection
+- [x] Highlight button appears near a non-empty selection; a keyboard shortcut does the same; both create the Highlight via the API
+- [x] Whitespace-only selections create nothing (no button, or a no-op), with no error
+- [x] `409 overlapping_highlight` (and any other API error) shows a clear message; the selection is not turned into a Highlight
+- [x] Highlights render as overlays in a single color, correctly placed at every zoom level and across page breaks
+- [x] After reload, Highlights reappear in the same place
+- [x] Library Highlight count reflects new Highlights
+- [x] Verified with Chrome DevTools MCP against a running app and the fixture PDFs: a single-line, a multi-line, and a cross-page selection each produce a Highlight whose quote (API) exactly matches the selected text; an overlapping selection is blocked with a message; Highlights reappear in place after reload
+
+**Resolution notes:**
+- Verified in headless Chrome 154 over CDP (DevTools MCP was held by another session) with real mouse drags on `sample.pdf`: single-line, multi-line (via `H` shortcut) and cross-page (p2→p3) quotes equal `getSelection().toString()` whitespace-collapsed; overlap blocked with "This overlaps an existing Highlight."; whitespace-only (selection over a `<br>`) shows no button and `H` is a no-op; overlays aligned at 50/75/125/300%; reappear after reload; Library `highlightCount` updated.
+- Also changed `pdf-viewer.ts`: text layers are marked `.selecting` from `selectionchange` (PDF.js TextLayerBuilder port), so drags that start in a page margin select text.
+- Shortcut is a bare `H` (ignored in inputs or with modifiers).
