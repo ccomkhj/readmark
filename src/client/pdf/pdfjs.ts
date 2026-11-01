@@ -9,6 +9,8 @@
  */
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// Text layer styles (`.textLayer`, `.endOfContent`) matching this PDF.js version.
+import "pdfjs-dist/web/pdf_viewer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 

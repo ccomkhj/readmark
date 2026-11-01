@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDto } from "../../shared/api-types.ts";
 import { importDocument, listDocuments, removeDocument } from "../api.ts";
+import { routeHref } from "../routes.ts";
 
 type Notice = { kind: "info" | "error"; text: string };
 
@@ -96,7 +97,9 @@ export function LibraryView() {
         <ul className="document-list" aria-label="Documents">
           {documents.map((doc) => (
             <li key={doc.id} className="document-row">
-              <div className="document-title">{doc.title}</div>
+              <a className="document-title" href={routeHref({ view: "reader", documentId: doc.id })}>
+                {doc.title}
+              </a>
               <div className="document-meta">
                 <span>{doc.author ?? "Unknown author"}</span>
                 <span>{plural(doc.pageCount, "page")}</span>

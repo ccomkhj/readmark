@@ -34,6 +34,10 @@ export function listDocuments(): Promise<DocumentDto[]> {
   return request("/documents");
 }
 
+export function getDocument(id: string): Promise<DocumentDto> {
+  return request(`/documents/${encodeURIComponent(id)}`);
+}
+
 export function importDocument(file: File): Promise<ImportResultDto> {
   const form = new FormData();
   form.append("file", file);
