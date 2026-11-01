@@ -6,17 +6,17 @@ See spec: `.scratch/v1-reading-loop/spec.md` (Architecture and stack, Modules 1â
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] One command builds and serves client + API on localhost; in development the client dev server proxies `/api` to the Node server
-- [ ] App works fully offline: no CDN or network calls (PDF.js worker, cmaps, standard fonts served locally); no auth, no telemetry
-- [ ] PDF.js is pinned to one exact version and used for browser rendering and Node text extraction
-- [ ] Data directory defaults to a per-user app data dir and can be overridden by an environment variable; it holds a single SQLite file plus Library PDF files keyed by Document id
-- [ ] HTTP framework supports in-process request testing without opening a port; API errors use `{ error, message }`
-- [ ] Page Text module (shared, pure): builds canonical page text from PDF.js text items (item strings concatenated in order, line break after each end-of-line item); used by import
-- [ ] `POST /api/documents` (multipart field `file`) for a new valid PDF: id = SHA-256 hex of the bytes; title/author from PDF metadata; page count; bytes copied into the Library; canonical page text stored for every page; returns `201 { document, created: true }`
-- [ ] `GET /api/documents` returns `200 [document]`, newest import first; `GET /api/documents/:id` returns `200 document` or `404 document_not_found`; `GET /api/documents/:id/file` returns the original bytes as `application/pdf`
-- [ ] `document` shape: `{ id, title, author|null, pageCount, importedAt, highlightCount }`
-- [ ] Committed, deterministic fixture script generates a multi-page text PDF with title/author metadata, a known sentence that crosses a page break, and one page with no text (figure-only), so the Reader can check that such pages render
-- [ ] API tests (fresh temp data dir per test, real SQLite, real PDF.js, no mocks) cover: create, retrieve bytes identical to upload, get by id, 404 for unknown id, list order across two imports
-- [ ] Library view lists Documents (title, author, page count, Highlight count) and imports via a file picker; the new Document appears at the top after import
+- [x] One command builds and serves client + API on localhost; in development the client dev server proxies `/api` to the Node server
+- [x] App works fully offline: no CDN or network calls (PDF.js worker, cmaps, standard fonts served locally); no auth, no telemetry
+- [x] PDF.js is pinned to one exact version and used for browser rendering and Node text extraction
+- [x] Data directory defaults to a per-user app data dir and can be overridden by an environment variable; it holds a single SQLite file plus Library PDF files keyed by Document id
+- [x] HTTP framework supports in-process request testing without opening a port; API errors use `{ error, message }`
+- [x] Page Text module (shared, pure): builds canonical page text from PDF.js text items (item strings concatenated in order, line break after each end-of-line item); used by import
+- [x] `POST /api/documents` (multipart field `file`) for a new valid PDF: id = SHA-256 hex of the bytes; title/author from PDF metadata; page count; bytes copied into the Library; canonical page text stored for every page; returns `201 { document, created: true }`
+- [x] `GET /api/documents` returns `200 [document]`, newest import first; `GET /api/documents/:id` returns `200 document` or `404 document_not_found`; `GET /api/documents/:id/file` returns the original bytes as `application/pdf`
+- [x] `document` shape: `{ id, title, author|null, pageCount, importedAt, highlightCount }`
+- [x] Committed, deterministic fixture script generates a multi-page text PDF with title/author metadata, a known sentence that crosses a page break, and one page with no text (figure-only), so the Reader can check that such pages render
+- [x] API tests (fresh temp data dir per test, real SQLite, real PDF.js, no mocks) cover: create, retrieve bytes identical to upload, get by id, 404 for unknown id, list order across two imports
+- [x] Library view lists Documents (title, author, page count, Highlight count) and imports via a file picker; the new Document appears at the top after import
