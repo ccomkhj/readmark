@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { DocumentDto } from "../../shared/api-types.ts";
-import { documentFileUrl, getDocument } from "../api.ts";
+import type { Anchor, DocumentDto } from "../../shared/api-types.ts";
+import { ApiError, documentFileUrl, getDocument } from "../api.ts";
 import { routeHref } from "../routes.ts";
+import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { PdfViewer } from "./pdf-viewer.ts";
+import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
+import { useHighlights } from "./use-highlights.ts";
 
 /** Zoom levels the zoom buttons step through. */
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -24,6 +27,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(DEFAULT_SCALE);
+  const { highlights, loadError, create } = useHighlights(documentId);
+  const [highlightError, setHighlightError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +60,21 @@ export function ReaderView({ documentId }: { documentId: string }) {
       window.document.title = "Book Reader";
     };
   }, [document]);
+
+  useEffect(() => {
+    if (viewer && highlights) return drawHighlightOverlays(viewer, highlights);
+  }, [viewer, highlights]);
+
+  const createHighlight = async (start: Anchor, end: Anchor) => {
+    setHighlightError(null);
+    try {
+      await create(start, end);
+    } catch (e) {
+      // Whitespace-only selections offer no action, but stay silent on empty_highlight anyway (story 29).
+      if (!(e instanceof ApiError && e.code === "empty_highlight")) setHighlightError(highlightErrorMessage(e));
+      throw e;
+    }
+  };
 
   const zoom = (direction: 1 | -1) => {
     if (!viewer) return;
@@ -97,12 +117,25 @@ export function ReaderView({ documentId }: { documentId: string }) {
           {error}
         </p>
       )}
+      {(highlightError ?? loadError) && (
+        <p className="message error reader-message" role="alert">
+          {highlightError ?? `Could not load Highlights: ${loadError}`}
+        </p>
+      )}
 
       <div className="reader-body">
         <div className="reader-scroll" ref={scrollRef} />
+        {viewer && <SelectionHighlighter viewer={viewer} onCreate={createHighlight} />}
       </div>
     </div>
   );
+}
+
+function highlightErrorMessage(e: unknown): string {
+  if (e instanceof ApiError && e.code === "overlapping_highlight") {
+    return "This overlaps an existing Highlight. Highlights can't overlap.";
+  }
+  return `Could not create the Highlight: ${(e as Error).message}`;
 }
 
 /**

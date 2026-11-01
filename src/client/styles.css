@@ -231,3 +231,37 @@ a.document-title:hover {
   place-items: center;
   color: var(--muted);
 }
+
+/* Highlights (src/client/reader/highlight-overlays.ts, SelectionHighlighter.tsx).
+   The layer sits between the canvas and the text layer and takes no pointer
+   events, so text under a Highlight stays selectable. */
+.highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.highlight-rect {
+  position: absolute;
+  background: rgb(255 214 0 / 0.45);
+  mix-blend-mode: multiply;
+}
+
+.highlight-action {
+  position: fixed;
+  z-index: 10;
+  padding: 0.25rem 0.625rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+  cursor: pointer;
+}
+
+.highlight-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
