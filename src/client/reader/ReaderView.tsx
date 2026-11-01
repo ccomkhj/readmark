@@ -4,6 +4,7 @@ import { ApiError, documentFileUrl, getDocument } from "../api.ts";
 import { routeHref } from "../routes.ts";
 import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
+import { HighlightsSidebar } from "./HighlightsSidebar.tsx";
 import { PdfViewer } from "./pdf-viewer.ts";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
 import { useHighlights } from "./use-highlights.ts";
@@ -128,6 +129,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
       <div className="reader-body">
         <div className="reader-scroll" ref={scrollRef} />
         {viewer && <SelectionHighlighter viewer={viewer} onCreate={createHighlight} />}
+        {viewer && <HighlightsSidebar viewer={viewer} highlights={highlights} />}
       </div>
     </div>
   );
