@@ -37,6 +37,11 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX highlights_by_document ON highlights(document_id, start_page, start_offset);
   `,
+  // Reading Position: both set together, or both null (never read).
+  `
+  ALTER TABLE documents ADD COLUMN last_read_page INTEGER;
+  ALTER TABLE documents ADD COLUMN last_read_at TEXT;
+  `,
 ];
 
 export function openDb(file: string): Db {

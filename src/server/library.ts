@@ -29,6 +29,12 @@ export type Library = {
    * its stored PDF bytes. Throws `document_not_found`.
    */
   remove(id: string): Promise<void>;
+  /**
+   * Record `page` as the Document's Reading Position, stamped now.
+   * Throws `document_not_found`; `invalid_page` unless `page` is an integer in
+   * `1..pageCount`.
+   */
+  setReadingPosition(id: string, page: number): DocumentDto;
 };
 
 type DocumentRow = {
@@ -38,10 +44,12 @@ type DocumentRow = {
   page_count: number;
   imported_at: string;
   highlight_count: number;
+  last_read_page: number | null;
+  last_read_at: string | null;
 };
 
 const SELECT_DOCUMENT = `
-  SELECT d.id, d.title, d.author, d.page_count, d.imported_at,
+  SELECT d.id, d.title, d.author, d.page_count, d.imported_at, d.last_read_page, d.last_read_at,
          (SELECT COUNT(*) FROM highlights h WHERE h.document_id = d.id) AS highlight_count
   FROM documents d`;
 
@@ -125,6 +133,19 @@ export function createLibrary(db: Db, dataDir: string): Library {
       if (changes === 0) throw documentNotFound(id);
       await rm(filePath(id), { force: true });
     },
+
+    setReadingPosition(id, page) {
+      const { pageCount } = get(id);
+      if (!Number.isInteger(page) || page < 1 || page > pageCount) {
+        throw new DomainError("invalid_page", `Page must be an integer in 1..${pageCount}, got ${page}.`);
+      }
+      db.prepare(`UPDATE documents SET last_read_page = ?, last_read_at = ? WHERE id = ?`).run(
+        page,
+        new Date().toISOString(),
+        id,
+      );
+      return get(id);
+    },
   };
 }
 
@@ -136,6 +157,10 @@ function toDto(row: DocumentRow): DocumentDto {
     pageCount: row.page_count,
     importedAt: row.imported_at,
     highlightCount: row.highlight_count,
+    readingPosition:
+      row.last_read_page === null || row.last_read_at === null
+        ? null
+        : { page: row.last_read_page, updatedAt: row.last_read_at },
   };
 }
 

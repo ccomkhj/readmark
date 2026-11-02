@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import type { Anchor, CreateHighlightBody, PutNoteBody } from "../../shared/api-types.ts";
 import { DomainError } from "../domain-error.ts";
 import type { Highlights } from "../highlights.ts";
+import { isRecord, jsonBody } from "./json-body.ts";
 
 /** Routes under /api/documents/:id/highlights. Thin: parse request, call Highlights, pick status. */
 export function documentHighlightsRoutes(highlights: Highlights): Hono {
@@ -42,14 +43,6 @@ function documentId(c: Context): string {
   return id;
 }
 
-async function jsonBody(c: Context): Promise<unknown> {
-  try {
-    return await c.req.json();
-  } catch {
-    throw new DomainError("bad_request", "Expected a JSON body.");
-  }
-}
-
 function parseCreateHighlightBody(body: unknown): CreateHighlightBody {
   if (!isRecord(body) || !isAnchor(body["start"]) || !isAnchor(body["end"])) {
     throw new DomainError("bad_request", "Expected a JSON body `{ start: {page, offset}, end: {page, offset} }`.");
@@ -62,10 +55,6 @@ function parsePutNoteBody(body: unknown): PutNoteBody {
     throw new DomainError("bad_request", "Expected a JSON body `{ text: string }`.");
   }
   return { text: body["text"] };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Shape check only; bounds are the Highlights module's job (`invalid_range`). */

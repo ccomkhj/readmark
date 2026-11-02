@@ -201,7 +201,7 @@ Shapes:
 - Multiple highlight colors; editing a Highlight's span; overlapping Highlights; sentence snapping.
 - Notes not attached to a Highlight, or attached to several Highlights.
 - PDF page labels (printed page numbers); de-hyphenating words broken across lines in quotes.
-- Remembering reading position, reading stats or progress tracking.
+- Reading stats or progress tracking. (Remembering reading position: added later, see `.scratch/reading-position/spec.md`.)
 - Writing annotations into the PDF, or exporting an annotated PDF copy (ADR-0001).
 - Multi-user use, accounts, sync, cloud storage.
 - Non-PDF formats (EPUB, etc.); mobile layouts; desktop packaging (Tauri can wrap the app later).

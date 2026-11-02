@@ -20,6 +20,7 @@ describe("POST /api/documents", () => {
         pageCount: 5,
         importedAt: expect.any(String),
         highlightCount: 0,
+        readingPosition: null,
       },
     });
     expect(Number.isNaN(Date.parse(body.document.importedAt))).toBe(false);
@@ -139,6 +140,7 @@ describe("GET /api/documents", () => {
       pageCount: 2,
       importedAt: expect.any(String),
       highlightCount: 0,
+      readingPosition: null,
     });
   });
 });

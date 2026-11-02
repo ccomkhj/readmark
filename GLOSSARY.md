@@ -20,6 +20,10 @@ _Avoid_: Annotation, Selection, Quote, Clip
 The reader's own words attached to exactly one Highlight; a Highlight has at most one Note.
 _Avoid_: Comment, Insight, Annotation
 
+**Reading Position**:
+The page of a Document the reader was last on, and when; at most one per Document, replaced as they read. The most recent one across the Library is where "continue reading" goes.
+_Avoid_: Bookmark, Progress, Last page
+
 **Page furniture**:
 The lines a page's layout repeats at its top or bottom edge rather than the body text: running headers and footers, watermarks, page numbers. Left out of a Highlight's quote and overlay, never out of its anchors.
 _Avoid_: Boilerplate, Chrome, Margin text

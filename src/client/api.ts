@@ -9,6 +9,7 @@ import type {
   ImportResultDto,
   InsightExport,
   PutNoteBody,
+  PutReadingPositionBody,
 } from "../shared/api-types.ts";
 
 /** A non-2xx API response. `code` is the stable error code from the server. */
@@ -60,6 +61,11 @@ const json = (method: string, body: unknown): RequestInit => ({
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
+
+/** Records `page` as the Document's Reading Position. Rejects with `invalid_page`, `document_not_found`. */
+export function putReadingPosition(id: string, page: number): Promise<DocumentDto> {
+  return request(`/documents/${encodeURIComponent(id)}/reading-position`, json("PUT", { page } satisfies PutReadingPositionBody));
+}
 
 /** The Document's Highlights in reading order. */
 export function listHighlights(documentId: string): Promise<HighlightDto[]> {

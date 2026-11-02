@@ -93,6 +93,8 @@ export function LibraryView() {
         </p>
       )}
 
+      {documents && <ContinueReading documents={documents} />}
+
       {documents === null ? (
         <p className="message">Loading…</p>
       ) : documents.length === 0 ? (
@@ -108,6 +110,7 @@ export function LibraryView() {
                 <span>{doc.author ?? "Unknown author"}</span>
                 <span>{plural(doc.pageCount, "page")}</span>
                 <span>{plural(doc.highlightCount, "highlight")}</span>
+                {doc.readingPosition && <span>on p. {doc.readingPosition.page}</span>}
               </div>
               <button
                 type="button"
@@ -122,6 +125,22 @@ export function LibraryView() {
         </ul>
       )}
     </main>
+  );
+}
+
+/** Link back into the most recently read Document, at its Reading Position. Nothing if none was read. */
+function ContinueReading({ documents }: { documents: DocumentDto[] }) {
+  const last = documents.reduce<DocumentDto | null>((latest, doc) => {
+    if (!doc.readingPosition) return latest;
+    return !latest || doc.readingPosition.updatedAt > latest.readingPosition!.updatedAt ? doc : latest;
+  }, null);
+  if (!last) return null;
+  return (
+    <p className="continue-reading">
+      Continue reading{" "}
+      <a href={routeHref({ view: "reader", documentId: last.id })}>{last.title}</a> · p. {last.readingPosition!.page} of{" "}
+      {last.pageCount}
+    </p>
   );
 }
 

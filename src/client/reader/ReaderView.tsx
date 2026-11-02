@@ -9,6 +9,7 @@ import { PdfViewer } from "./pdf-viewer.ts";
 import { ReaderToast, type ReaderMessage } from "./ReaderToast.tsx";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
 import { useHighlights } from "./use-highlights.ts";
+import { useReadingPosition } from "./use-reading-position.ts";
 
 /** Zoom levels the zoom buttons step through. */
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -18,7 +19,8 @@ const FLASH_MS = 1000;
 
 /**
  * Reader view: one Document's pages in a continuous scroll (PdfViewer), with
- * a toolbar for page navigation and zoom.
+ * a toolbar for page navigation and zoom. Opens at the Document's Reading
+ * Position and keeps it saved (useReadingPosition).
  *
  * Layout: `.reader-toolbar` (back, title, page nav, zoom; feature actions go
  * at its end) above `.reader-body`, a row holding the `.reader-scroll`
@@ -48,6 +50,11 @@ export function ReaderView({ documentId }: { documentId: string }) {
     return notice ? { kind: "info", text: notice } : null;
   });
   const dismissMessage = useCallback(() => setMessage(null), []);
+  const onPositionSaveError = useCallback(
+    (e: Error) => setMessage({ kind: "error", text: `Could not save your reading position: ${e.message}` }),
+    [],
+  );
+  useReadingPosition(documentId, viewer, onPositionSaveError);
 
   useEffect(clearRouteNotice, []);
 
@@ -58,10 +65,12 @@ export function ReaderView({ documentId }: { documentId: string }) {
   useEffect(() => {
     let cancelled = false;
     let opened: PdfViewer | null = null;
+    let resumePage: number | undefined;
     getDocument(documentId)
       .then((loaded) => {
         if (cancelled) return;
         setDoc(loaded);
+        resumePage = loaded.readingPosition?.page;
         return PdfViewer.open(scrollRef.current!, documentFileUrl(documentId), { scale: DEFAULT_SCALE });
       })
       .then((v) => {
@@ -73,6 +82,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
         v.on("pageError", shown);
         v.on("pageChange", setPage);
         v.on("scaleChange", setScale);
+        // Resume where the reader left off, before anything saves the position.
+        if (resumePage !== undefined) v.scrollToPage(resumePage);
         setViewer(v);
       })
       .catch((e: Error) => !cancelled && setError(e.message));

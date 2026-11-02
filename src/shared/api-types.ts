@@ -12,7 +12,20 @@ export type DocumentDto = {
   /** ISO-8601 timestamp. */
   importedAt: string;
   highlightCount: number;
+  /** Where the reader last was; null if the Document was never opened. */
+  readingPosition: ReadingPositionDto | null;
 };
+
+/** A Document's Reading Position: the page last read, and when. */
+export type ReadingPositionDto = {
+  /** 1-based physical page, in `1..pageCount`. */
+  page: number;
+  /** ISO-8601 timestamp of the last put. */
+  updatedAt: string;
+};
+
+/** Body of `PUT /api/documents/:id/reading-position`. */
+export type PutReadingPositionBody = { page: number };
 
 /** Response of `POST /api/documents`. */
 export type ImportResultDto = { document: DocumentDto; created: boolean };
@@ -63,7 +76,8 @@ export type ErrorCode =
   | "overlapping_highlight"
   | "not_a_pdf"
   | "encrypted_pdf"
-  | "no_text_layer";
+  | "no_text_layer"
+  | "invalid_page";
 
 /** Body of every non-2xx API response. */
 export type ApiErrorBody = { error: ErrorCode; message: string };
