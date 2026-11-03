@@ -6,6 +6,7 @@ import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { HighlightsSidebar } from "./HighlightsSidebar.tsx";
 import { PdfViewer } from "./pdf-viewer.ts";
+import { loadZoom, saveZoom, useReaderMode } from "./reader-prefs.ts";
 import { ReaderToast, type ReaderMessage } from "./ReaderToast.tsx";
 import { SelectionHighlighter } from "./SelectionHighlighter.tsx";
 import { useHighlights } from "./use-highlights.ts";
@@ -20,7 +21,13 @@ const FLASH_MS = 1000;
 /**
  * Reader view: one Document's pages in a continuous scroll (PdfViewer), with
  * a toolbar for page navigation and zoom. Opens at the Document's Reading
- * Position and keeps it saved (useReadingPosition).
+ * Position and keeps it saved (useReadingPosition), at the zoom it was last
+ * read at (reader-prefs).
+ *
+ * Reading comfort modes (toolbar switches, remembered across Documents):
+ * Night mode shows light text on dark pages; Focus mode hides the Highlights
+ * sidebar, which comes back while a Highlight is active (e.g. one clicked in
+ * the pages) so its Note editor stays reachable.
  *
  * Layout: `.reader-toolbar` (back, title, page nav, zoom; feature actions go
  * at its end) above `.reader-body`, a row holding the `.reader-scroll`
@@ -40,6 +47,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
   const [firstPageShown, setFirstPageShown] = useState(false);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(DEFAULT_SCALE);
+  const [night, toggleNight] = useReaderMode("night");
+  const [focus, toggleFocus] = useReaderMode("focus");
   const { highlights, loadError, create, ...highlightActions } = useHighlights(documentId);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
   /** A Highlight jumped to from the sidebar, emphasized for FLASH_MS. A new object re-flashes the same id. */
@@ -71,7 +80,8 @@ export function ReaderView({ documentId }: { documentId: string }) {
         if (cancelled) return;
         setDoc(loaded);
         resumePage = loaded.readingPosition?.page;
-        return PdfViewer.open(scrollRef.current!, documentFileUrl(documentId), { scale: DEFAULT_SCALE });
+        const savedZoom = loadZoom(documentId, (s) => ZOOM_STEPS.includes(s));
+        return PdfViewer.open(scrollRef.current!, documentFileUrl(documentId), { scale: savedZoom ?? DEFAULT_SCALE });
       })
       .then((v) => {
         if (!v) return;
@@ -81,7 +91,11 @@ export function ReaderView({ documentId }: { documentId: string }) {
         v.on("pageRendered", shown);
         v.on("pageError", shown);
         v.on("pageChange", setPage);
-        v.on("scaleChange", setScale);
+        setScale(v.scale);
+        v.on("scaleChange", (s) => {
+          setScale(s);
+          saveZoom(documentId, s);
+        });
         // Resume where the reader left off, before anything saves the position.
         if (resumePage !== undefined) v.scrollToPage(resumePage);
         setViewer(v);
@@ -133,7 +147,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
   };
 
   return (
-    <div className="reader">
+    <div className={["reader", night && "night", focus && "focus"].filter(Boolean).join(" ")}>
       <header className="reader-toolbar">
         <a className="reader-back" href={routeHref({ view: "library" })}>
           ← Library
@@ -153,6 +167,14 @@ export function ReaderView({ documentId }: { documentId: string }) {
               </span>
               <button type="button" onClick={() => zoom(1)} disabled={scale >= ZOOM_STEPS.at(-1)!} aria-label="Zoom in">
                 +
+              </button>
+            </div>
+            <div className="reader-modes" role="group" aria-label="Reading modes">
+              <button type="button" aria-pressed={night} onClick={toggleNight} title="Light text on dark pages">
+                Night
+              </button>
+              <button type="button" aria-pressed={focus} onClick={toggleFocus} title="Hide the Highlights sidebar">
+                Focus
               </button>
             </div>
           </>
@@ -180,6 +202,7 @@ export function ReaderView({ documentId }: { documentId: string }) {
           <ReaderToast message={error ? null : message} onDismiss={dismissMessage} />
         </div>
         {viewer && <SelectionHighlighter viewer={viewer} onCreate={createHighlight} />}
+        {/* Hidden, not unmounted, in Focus mode: it also handles clicks on Highlights in the pages. */}
         {viewer && (
           <HighlightsSidebar
             viewer={viewer}

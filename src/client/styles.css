@@ -1,11 +1,20 @@
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1f2328;
-  background: #f6f7f9;
-  --accent: #2f6feb;
-  --muted: #59636e;
-  --border: #d1d9e0;
-  --danger: #cf222e;
+  /* Book theme. System serif stacks only: the app runs offline (no web fonts). */
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  font-family: var(--serif);
+  color: #2b2118;
+  background: #efe6d3;
+  --accent: #7a2e1f; /* oxblood, like a ribbon bookmark */
+  --muted: #7a6a55;
+  --border: #d9cbb0;
+  --danger: #a3221b;
+  --paper: #fbf6ea;
+  --paper-edge: #e8dcc2;
+  --leather: #4a2c1d;
+  --leather-dark: #2e1a10;
+  --gilt: #d8b56a;
+  /* Desk the open pages lie on. */
+  --desk: radial-gradient(ellipse at 50% 0%, #6b4a33 0%, #4a3122 55%, #33211a 100%);
   /* Light-only UI. Also overrides `color-scheme: light dark` that PDF.js's
      pdf_viewer.css (imported in pdf/pdfjs.ts, earlier in the cascade) sets on :root. */
   color-scheme: light;
@@ -13,17 +22,43 @@
 
 body {
   margin: 0;
+  /* Linen-like weave behind the Library. */
+  background:
+    repeating-linear-gradient(0deg, rgb(120 90 50 / 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(120 90 50 / 0.035) 0 1px, transparent 1px 3px),
+    #efe6d3;
+}
+
+h1,
+h2 {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+::selection {
+  background: rgb(122 46 31 / 0.25);
 }
 
 .button {
   display: inline-block;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
-  background: var(--accent);
-  color: white;
+  border-radius: 4px;
+  background: linear-gradient(#8a3a28, var(--accent));
+  color: #fbeed3;
   cursor: pointer;
   font-weight: 600;
   user-select: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+.button:hover {
+  filter: brightness(1.08);
 }
 
 .message {
@@ -57,44 +92,96 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 3px double var(--muted);
+}
+
+.library-header h1 {
+  font-size: 2.25rem;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
 }
 
 .continue-reading {
-  margin: 1rem 0;
-  padding: 0.75rem 1rem;
+  position: relative;
+  margin: 1.25rem 0;
+  padding: 0.75rem 1rem 0.75rem 2.25rem;
+  font-style: italic;
+  background: var(--paper);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: white;
+  box-shadow: 0 2px 6px rgb(60 40 20 / 0.15);
+}
+
+/* Ribbon bookmark hanging over the card's top edge. */
+.continue-reading::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 0.75rem;
+  width: 0.75rem;
+  height: calc(100% + 6px);
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
 }
 
 .continue-reading a {
   font-weight: 600;
+  font-style: normal;
+  color: var(--accent);
 }
 
+/* Each Document is a book lying on the shelf: leather spine on the left,
+   cream page block on the right edge. */
 .document-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: white;
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
 }
 
 .document-row {
+  --spine: #5b2a1e;
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   column-gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0.875rem 1.25rem 0.875rem 2.25rem;
+  background: linear-gradient(90deg, var(--spine) 0 1.1rem, rgb(0 0 0 / 0.25) 1.1rem 1.2rem, var(--paper) 1.2rem);
+  border-radius: 3px 6px 6px 3px;
+  box-shadow:
+    2px 2px 0 var(--paper-edge),
+    4px 4px 0 #ddd0b4,
+    0 6px 14px rgb(60 40 20 / 0.25);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.document-row:last-child {
-  border-bottom: none;
+.document-row:nth-child(4n + 2) {
+  --spine: #23412f;
+}
+
+.document-row:nth-child(4n + 3) {
+  --spine: #1f3352;
+}
+
+.document-row:nth-child(4n + 4) {
+  --spine: #6b4b1f;
+}
+
+.document-row:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    2px 2px 0 var(--paper-edge),
+    4px 4px 0 #ddd0b4,
+    0 10px 20px rgb(60 40 20 / 0.3);
 }
 
 .document-title {
   font-weight: 600;
+  font-size: 1.125rem;
 }
 
 .document-row .remove-button {
@@ -102,8 +189,8 @@ body {
   grid-row: 1 / span 2;
   padding: 0.25rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: white;
+  border-radius: 4px;
+  background: transparent;
   color: var(--danger);
   cursor: pointer;
 }
@@ -111,6 +198,7 @@ body {
 .document-meta {
   display: flex;
   gap: 1rem;
+  font-style: italic;
   color: var(--muted);
   font-size: 0.875rem;
   margin-top: 0.25rem;
@@ -134,33 +222,57 @@ a.document-title:hover {
   height: 100vh;
 }
 
+/* Leather cover band with gilt lettering. */
 .reader-toolbar {
+  position: relative;
+  z-index: 1; /* its shadow falls on the desk */
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: white;
+  color: #f1e3c4;
+  background:
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.02) 0 2px, transparent 2px 5px),
+    linear-gradient(var(--leather), var(--leather-dark));
+  border-bottom: 1px solid var(--gilt);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+.reader-toolbar .message.info {
+  color: var(--gilt);
+}
+
+.reader-toolbar .message.error {
+  color: #ff9d8a;
 }
 
 .reader-back {
-  color: var(--accent);
+  color: var(--gilt);
   text-decoration: none;
   white-space: nowrap;
+}
+
+.reader-back:hover {
+  text-decoration: underline;
 }
 
 .reader-title {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.0625rem;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--gilt);
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .reader-page-nav,
-.reader-zoom {
+.reader-zoom,
+.reader-modes {
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -171,18 +283,42 @@ a.document-title:hover {
   text-align: right;
   font: inherit;
   padding: 0.125rem 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  color: #f1e3c4;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(216 181 106 / 0.6);
+  border-radius: 3px;
+}
+
+.reader-zoom button,
+.reader-modes button,
+.reader-export button {
+  font: inherit;
+  color: #f1e3c4;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(216 181 106 / 0.6);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.reader-zoom button:hover:not(:disabled),
+.reader-modes button:hover,
+.reader-export button:hover:not(:disabled) {
+  background: rgb(216 181 106 / 0.2);
+}
+
+.reader-modes button {
+  height: 2rem;
+  padding: 0 0.75rem;
+}
+
+.reader-modes button[aria-pressed="true"] {
+  color: var(--leather-dark);
+  background: var(--gilt);
 }
 
 .reader-zoom button {
   width: 2rem;
   height: 2rem;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
 }
 
 .reader-zoom button:disabled {
@@ -200,11 +336,6 @@ a.document-title:hover {
 .reader-export button {
   height: 2rem;
   padding: 0 0.75rem;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
 }
 
 .reader-zoom-level {
@@ -232,7 +363,8 @@ a.document-title:hover {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  background: #e4e7eb;
+  background: var(--desk);
+  background-attachment: local;
 }
 
 /* Focused only programmatically (after go-to-page), to take focus off the toolbar. */
@@ -249,8 +381,9 @@ a.document-title:hover {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: var(--muted);
-  background: #e4e7eb;
+  font-style: italic;
+  color: #e9d9b8;
+  background: var(--desk);
 }
 
 .reader-status p {
@@ -258,11 +391,11 @@ a.document-title:hover {
 }
 
 .reader-status.error p {
-  color: var(--danger);
+  color: #ff9d8a;
 }
 
 .reader-status a {
-  color: var(--accent);
+  color: var(--gilt);
 }
 
 /* Message toast (src/client/reader/ReaderToast.tsx): over the top of the pages, no layout shift. */
@@ -282,11 +415,11 @@ a.document-title:hover {
   gap: 0.75rem;
   padding: 0.5rem 0.5rem 0.5rem 0.875rem;
   font-size: 0.875rem;
-  background: white;
+  background: var(--paper);
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  border-radius: 2px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
 }
 
 .reader-toast.error {
@@ -317,15 +450,37 @@ a.document-title:hover {
   box-sizing: border-box;
 }
 
+/* A leaf of paper: warm stock, a stack of page edges below/right, and the
+   gutter's shade along the bound (left) edge. */
 .pdf-page {
   position: relative;
   flex: none;
-  background: white;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  isolation: isolate; /* the canvas multiplies onto this page's paper only */
+  background:
+    radial-gradient(ellipse at 60% 40%, transparent 60%, rgb(150 110 60 / 0.08) 100%),
+    var(--paper);
+  border-radius: 1px 3px 3px 1px;
+  box-shadow:
+    1px 1px 0 #efe5cf,
+    2px 2px 0 #d6c9ad,
+    3px 3px 0 #efe5cf,
+    4px 4px 0 #d6c9ad,
+    0 8px 24px rgb(0 0 0 / 0.45);
 }
 
+.pdf-page::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6%;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(60 40 20 / 0.22), rgb(60 40 20 / 0.06) 40%, transparent);
+}
+
+/* PDF pages are drawn on opaque white; multiply turns the white into paper. */
 .pdf-canvas {
   display: block;
+  mix-blend-mode: multiply;
 }
 
 .pdf-page-error::after {
@@ -358,10 +513,10 @@ a.document-title:hover {
   padding: 0.25rem 0.625rem;
   font: inherit;
   font-size: 0.875rem;
-  color: white;
+  color: #fbeed3;
   background: var(--accent);
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
   cursor: pointer;
 }
@@ -407,9 +562,10 @@ a.document-title:hover {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: #f4f8ff;
+  background: #fffdf6;
   border-left: 3px solid var(--accent);
   border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgb(122 46 31 / 0.08);
 }
 
 .note-editor-header,
@@ -437,6 +593,7 @@ a.document-title:hover {
 
 .note-editor-quote {
   margin: 0;
+  font-style: italic;
   padding-left: 0.5rem;
   overflow: auto;
   max-height: 8rem;
@@ -447,10 +604,16 @@ a.document-title:hover {
 .note-editor-text {
   font: inherit;
   font-size: 0.875rem;
-  padding: 0.375rem;
+  line-height: 1.5rem;
+  padding: 0 0.375rem;
   resize: vertical;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 2px;
+  /* Ruled like a notebook; lines follow the text's line height. */
+  background:
+    repeating-linear-gradient(transparent 0 calc(1.5rem - 1px), #d8e1ea calc(1.5rem - 1px) 1.5rem),
+    white;
+  background-attachment: local;
 }
 
 .note-editor-status {
@@ -467,30 +630,35 @@ a.document-title:hover {
   font-size: 0.8125rem;
   padding: 0.25rem 0.5rem;
   color: var(--danger);
-  background: white;
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
 }
 
 /* Highlights sidebar (src/client/reader/HighlightsSidebar.tsx). */
+/* A reading notebook beside the book. */
 .highlights-sidebar {
   flex: none;
   width: 20rem;
   overflow-y: auto;
-  border-left: 1px solid var(--border);
-  background: white;
+  border-left: 1px solid var(--leather-dark);
+  background: var(--paper);
+  box-shadow: inset 6px 0 10px -6px rgb(0 0 0 / 0.35);
 }
 
 .highlights-sidebar h2 {
   margin: 0;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0.875rem 1rem 0.625rem;
+  font-size: 1.125rem;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  border-bottom: 3px double var(--border);
 }
 
 .highlights-empty {
   padding: 0 1rem;
+  font-style: italic;
   color: var(--muted);
 }
 
@@ -515,7 +683,7 @@ a.document-title:hover {
 
 .highlights-entry:hover,
 .highlights-entry:focus-visible {
-  background: #f4f6f8;
+  background: #f3ead5;
 }
 
 .highlights-page,
@@ -531,6 +699,7 @@ a.document-title:hover {
 
 .highlights-quote {
   margin: 0.25rem 0 0;
+  font-style: italic;
   padding-left: 0.625rem;
   border-left: 3px solid rgb(255 214 0);
 }
@@ -538,5 +707,71 @@ a.document-title:hover {
 .highlights-note {
   margin: 0.375rem 0 0;
   font-size: 0.875rem;
+  color: var(--accent);
   white-space: pre-wrap;
+}
+
+/* Focus mode (ReaderView): the sidebar is hidden unless a Highlight is active
+   (its Note editor is open). */
+.reader.focus .highlights-sidebar:not(:has(.highlights-active)) {
+  display: none;
+}
+
+/* Night mode (ReaderView): light text on dark paper. The canvas is inverted
+   (hue-rotate keeps colors roughly their own) and screened onto the page, so
+   the page's white becomes the dark paper and its text a soft off-white. */
+.reader.night {
+  --paper: #26211b;
+  --border: #4a4034;
+  --muted: #a8977d;
+  --danger: #ff8f7f;
+  color: #e6dccb;
+}
+
+.reader.night .pdf-page {
+  box-shadow:
+    1px 1px 0 #1c1813,
+    2px 2px 0 #3a3229,
+    3px 3px 0 #1c1813,
+    4px 4px 0 #3a3229,
+    0 8px 24px rgb(0 0 0 / 0.6);
+}
+
+.reader.night .pdf-page::before {
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.1) 40%, transparent);
+}
+
+.reader.night .pdf-canvas {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85);
+  mix-blend-mode: screen;
+}
+
+/* Multiply would hide the highlight on dark paper. */
+.reader.night .highlight-rect {
+  background: rgb(255 214 0 / 0.3);
+  mix-blend-mode: normal;
+}
+
+.reader.night .highlight-rect.has-note {
+  box-shadow: 0 max(2px, 1.5px * var(--scale-factor, 1)) 0 rgb(230 180 60);
+}
+
+.reader.night .highlights-entry:hover,
+.reader.night .highlights-entry:focus-visible {
+  background: #322b23;
+}
+
+.reader.night .highlights-note {
+  color: #e0a48f;
+}
+
+.reader.night .note-editor {
+  background: #2d2720;
+}
+
+.reader.night .note-editor-text {
+  color: inherit;
+  background:
+    repeating-linear-gradient(transparent 0 calc(1.5rem - 1px), #3e372e calc(1.5rem - 1px) 1.5rem),
+    #1f1b16;
 }
