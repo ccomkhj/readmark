@@ -13,7 +13,8 @@
  * - `on("pageRendered" | "pageReleased", ...)` to (re)draw / drop overlays;
  *   `on("pageError", ...)` when a page could not be rendered.
  *   A page is re-rendered (new elements) after every zoom change.
- * - `scrollToPage(n, y)` scrolls to a point on a page.
+ * - `scrollToPage(n, y)` scrolls to a point on a page; `scrollByScreen(dir)`
+ *   reads on by one screen (keyboard page turns).
  * - `pageElement(n)` is a positioned container overlays can be appended to.
  * - `scrollContainer` is the element that scrolls (for scroll/click listeners).
  */
@@ -65,6 +66,8 @@ export const MAX_SCALE = 4;
 const PAGE_GAP = 16;
 /** Fraction of the viewport height whose page counts as "current". */
 const CURRENT_PAGE_PROBE = 0.3;
+/** Px shared by consecutive screens in `scrollByScreen`, so the reader keeps their place. */
+const SCREEN_OVERLAP = 48;
 
 type PageSlot = {
   pageNumber: number;
@@ -203,10 +206,43 @@ export class PdfViewer {
    */
   scrollToPage(pageNumber: number, y = 0): number {
     const page = this.clampPage(pageNumber);
-    const el = this.#slot(page).element;
-    this.#scroller.scrollTop = el.offsetTop - this.#pagesEl.offsetTop - PAGE_GAP / 2 + y;
+    this.#scroller.scrollTop = this.#pageTop(page) + y;
     this.#updateCurrentPage();
     return page;
+  }
+
+  /**
+   * Read on by one screen, like turning pages without skipping any text:
+   * forward (1) scrolls down a screen within the page at the top of the
+   * viewport, stopping at its bottom edge; once that is visible, it goes to the
+   * next page's top. Backward (-1) mirrors this: up a screen, stopping at the
+   * page's top; from there, to the previous page's last screen. Consecutive
+   * screens overlap by SCREEN_OVERLAP so the reader keeps their place.
+   * Returns what happened: "page" (moved to another page), "screen" (scrolled
+   * within the page) or null (already at the Document's first/last edge).
+   */
+  scrollByScreen(direction: 1 | -1): "page" | "screen" | null {
+    const { scrollTop, clientHeight } = this.#scroller;
+    const page = this.#pageAt(scrollTop + this.#pagesEl.offsetTop);
+    const step = Math.max(clientHeight - SCREEN_OVERLAP, 1);
+    let target: number;
+    let next = page;
+    if (direction > 0) {
+      const lastScreen = this.#pageBottom(page) - clientHeight;
+      if (scrollTop < lastScreen - 1) target = Math.min(scrollTop + step, lastScreen);
+      else if (page < this.pageCount) target = this.#pageTop((next = page + 1));
+      else return null;
+    } else {
+      const top = this.#pageTop(page);
+      if (scrollTop > top + 1) target = Math.max(scrollTop - step, top);
+      else if (page > 1) {
+        next = page - 1;
+        target = Math.max(this.#pageTop(next), this.#pageBottom(next) - clientHeight);
+      } else return null;
+    }
+    this.#scroller.scrollTop = target;
+    this.#updateCurrentPage();
+    return next !== page ? "page" : "screen";
   }
 
   /** Zoom, keeping the point at the top of the viewport in place. Clamped to MIN/MAX_SCALE. */
@@ -291,6 +327,16 @@ export class PdfViewer {
     if (page === this.#currentPage) return;
     this.#currentPage = page;
     this.#emit("pageChange", page);
+  }
+
+  /** scrollTop that puts the page's box (including half the gap above it) at the viewport top. */
+  #pageTop(pageNumber: number): number {
+    return this.#slot(pageNumber).element.offsetTop - this.#pagesEl.offsetTop - PAGE_GAP / 2;
+  }
+
+  /** scrollTop of the page box's bottom edge (including half the gap below it). */
+  #pageBottom(pageNumber: number): number {
+    return this.#pageTop(pageNumber) + this.#slot(pageNumber).element.offsetHeight + PAGE_GAP;
   }
 
   /** Page whose box (including half the gap around it) contains scroll-content y. */

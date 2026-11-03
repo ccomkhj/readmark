@@ -5,6 +5,8 @@ import { clearRouteNotice, routeHref, routeNotice } from "../routes.ts";
 import { ExportActions } from "./ExportActions.tsx";
 import { drawHighlightOverlays } from "./highlight-overlays.ts";
 import { HighlightsSidebar } from "./HighlightsSidebar.tsx";
+import { isEditable } from "./keyboard.ts";
+import { playPageTurn, playScreenSlide } from "./page-sound.ts";
 import { PdfViewer } from "./pdf-viewer.ts";
 import { loadZoom, saveZoom, useReaderMode } from "./reader-prefs.ts";
 import { ReaderToast, type ReaderMessage } from "./ReaderToast.tsx";
@@ -17,12 +19,19 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 const DEFAULT_SCALE = 1.25;
 /** How long a Highlight jumped to from the sidebar stays emphasized. */
 const FLASH_MS = 1000;
+/** Keys that read on (1) or back (-1) by a screen. */
+const PAGE_KEYS: Record<string, 1 | -1> = { ArrowRight: 1, ArrowLeft: -1 };
 
 /**
  * Reader view: one Document's pages in a continuous scroll (PdfViewer), with
  * a toolbar for page navigation and zoom. Opens at the Document's Reading
  * Position and keeps it saved (useReadingPosition), at the zoom it was last
  * read at (reader-prefs).
+ *
+ * Keyboard: ← / → read back / on by one screen (unless typing in a field),
+ * crossing to the previous / next page only once the current one is fully
+ * seen. Sounds (page-sound): a page turn when the page changes, a softer
+ * slide when scrolling within a page.
  *
  * Reading comfort modes (toolbar switches, remembered across Documents):
  * Night mode shows light text on dark pages; Focus mode hides the Highlights
@@ -113,6 +122,21 @@ export function ReaderView({ documentId }: { documentId: string }) {
       document.title = "Readmark";
     };
   }, [doc]);
+
+  useEffect(() => {
+    if (!viewer) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const step = PAGE_KEYS[e.key];
+      if (step === undefined || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (isEditable(e.target)) return;
+      e.preventDefault();
+      const moved = viewer.scrollByScreen(step);
+      if (moved === "page") playPageTurn();
+      else if (moved === "screen") playScreenSlide(step);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [viewer]);
 
   useEffect(() => {
     if (viewer && highlights) return drawHighlightOverlays(viewer, highlights, activeHighlightId, flash?.id);

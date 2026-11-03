@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Anchor } from "../../shared/api-types.ts";
+import { isEditable } from "./keyboard.ts";
 import { mapSelection, type MappedSelection } from "./selection-mapping.ts";
 import type { PdfViewer } from "./pdf-viewer.ts";
 
@@ -140,8 +141,4 @@ function currentSelection(viewer: PdfViewer): Pending | null {
 
 function selectionKey({ start, end }: MappedSelection): string {
   return `${start.page}:${start.offset}-${end.page}:${end.offset}`;
-}
-
-function isEditable(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 }
