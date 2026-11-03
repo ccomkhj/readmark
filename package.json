@@ -11,6 +11,9 @@
     "dev": "npm run pdfjs-assets && concurrently -k -n api,web \"tsx watch src/server/main.ts\" \"vite\"",
     "build": "npm run pdfjs-assets && vite build",
     "start": "npm run build && tsx src/server/main.ts",
+    "desktop:bundle": "esbuild src/desktop/main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/desktop/main.mjs",
+    "desktop": "npm run build && npm run desktop:bundle && electron .",
+    "desktop:package": "npm run build && npm run desktop:bundle && electron-builder --mac",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -32,10 +35,36 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "pdf-lib": "^1.17.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
+  },
+  "description": "Read PDFs, highlight, and export insights.",
+  "main": "dist/desktop/main.mjs",
+  "build": {
+    "appId": "io.github.ccomkhj.readmark",
+    "productName": "Readmark",
+    "files": [
+      "dist/client/**/*",
+      "dist/desktop/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "dir"
+      ],
+      "identity": "-",
+      "hardenedRuntime": false
+    }
   }
 }

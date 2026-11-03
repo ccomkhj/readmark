@@ -9,3 +9,5 @@ src/client/public/pdfjs/
 .data/
 .claude/worktrees/
 demos/
+# electron-builder output (npm run desktop:package)
+release/

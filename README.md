@@ -10,16 +10,33 @@ https://github.com/user-attachments/assets/d5d5ce0c-70cf-49d3-82a5-2765ffe2e09f
 
 ## Quick start
 
-Requires Node.js 22.13 or newer.
+Requires Node.js 22.13 or newer to build. Clone and install once:
 
 ```sh
 git clone https://github.com/ccomkhj/readmark.git
 cd readmark
 npm install
+```
+
+Then pick how you want to run it. Both share the same library, so you can switch any time.
+
+### macOS app (recommended on a Mac)
+
+```sh
+npm run desktop:package
+```
+
+This builds `release/mac-arm64/Readmark.app` and a `.dmg` (Apple Silicon). Drag the app into `/Applications` and open it like any other app: no terminal, no server to start, no open port.
+
+The app is not notarized, so the first time you open it, right-click it and choose *Open*. After pulling new code, run `npm run desktop:package` again and replace the app.
+
+### In the browser
+
+```sh
 npm start
 ```
 
-Open <http://127.0.0.1:4310>.
+Open <http://127.0.0.1:4310>. Stop it with Ctrl-C.
 
 ## How it works
 

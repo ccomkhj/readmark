@@ -19,7 +19,11 @@ Default data directory:
 npm run dev         # API + Vite dev server with hot reload
 npm test            # Vitest
 npm run typecheck
+npm run desktop          # build, then run the macOS shell unpackaged
+npm run desktop:package  # build Readmark.app + .dmg into release/
 ```
+
+The desktop shell (`src/desktop/main.ts`, Electron) runs the same Hono app in-process: it serves a `readmark://app/` scheme straight from `app.fetch`, so no port is opened. `PORT` doesn't apply to it; `READMARK_DATA_DIR` does.
 
 Stack: React and PDF.js in the browser; Hono and SQLite (better-sqlite3) on the server.
 

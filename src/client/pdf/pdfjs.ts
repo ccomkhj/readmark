@@ -18,9 +18,17 @@ const ASSETS = `${import.meta.env.BASE_URL}pdfjs/`;
 
 export { pdfjs };
 
-export function loadPdf(url: string): Promise<pdfjs.PDFDocumentProxy> {
+/**
+ * Fetches the whole file, then parses it. Not `getDocument({ url })`: PDF.js
+ * only streams http(s) URLs with fetch and falls back to XHR otherwise, which
+ * hangs on the desktop shell's readmark:// scheme. The API serves the whole
+ * file anyway (no range requests), so nothing is lost.
+ */
+export async function loadPdf(url: string): Promise<pdfjs.PDFDocumentProxy> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Could not load PDF (${res.status})`);
   return pdfjs.getDocument({
-    url,
+    data: new Uint8Array(await res.arrayBuffer()),
     cMapUrl: `${ASSETS}cmaps/`,
     cMapPacked: true,
     standardFontDataUrl: `${ASSETS}standard_fonts/`,
