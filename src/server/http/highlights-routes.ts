@@ -13,7 +13,7 @@ export function documentHighlightsRoutes(highlights: Highlights): Hono {
     return c.json(highlights.create(documentId(c), start, end), 201);
   });
 
-  routes.get("/", (c) => c.json(highlights.list(documentId(c))));
+  routes.get("/", (c) => c.json(highlights.list(documentId(c), parsePageQuery(c.req.query("page")))));
 
   return routes;
 }
@@ -48,6 +48,13 @@ function parseCreateHighlightBody(body: unknown): CreateHighlightBody {
     throw new DomainError("bad_request", "Expected a JSON body `{ start: {page, offset}, end: {page, offset} }`.");
   }
   return { start: body["start"], end: body["end"] };
+}
+
+/** `?page=N`: a positive integer, or absent for every page. */
+function parsePageQuery(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^[1-9]\d*$/.test(value)) throw new DomainError("bad_request", "Expected `page` to be a positive integer.");
+  return Number(value);
 }
 
 function parsePutNoteBody(body: unknown): PutNoteBody {
