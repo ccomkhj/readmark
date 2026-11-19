@@ -35,6 +35,8 @@ export type Library = {
    * `1..pageCount`.
    */
   setReadingPosition(id: string, page: number): DocumentDto;
+  /** Forget the Document's Reading Position (back to never read). Throws `document_not_found`. */
+  clearReadingPosition(id: string): DocumentDto;
 };
 
 type DocumentRow = {
@@ -144,6 +146,12 @@ export function createLibrary(db: Db, dataDir: string): Library {
         new Date().toISOString(),
         id,
       );
+      return get(id);
+    },
+
+    clearReadingPosition(id) {
+      get(id);
+      db.prepare(`UPDATE documents SET last_read_page = NULL, last_read_at = NULL WHERE id = ?`).run(id);
       return get(id);
     },
   };

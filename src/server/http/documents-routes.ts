@@ -37,6 +37,8 @@ export function documentsRoutes(library: Library): Hono {
     return c.json(library.setReadingPosition(c.req.param("id"), page));
   });
 
+  routes.delete("/:id/reading-position", (c) => c.json(library.clearReadingPosition(c.req.param("id"))));
+
   return routes;
 }
 
