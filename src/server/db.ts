@@ -42,6 +42,29 @@ const MIGRATIONS: string[] = [
   ALTER TABLE documents ADD COLUMN last_read_page INTEGER;
   ALTER TABLE documents ADD COLUMN last_read_at TEXT;
   `,
+  // Highlights: start before end in reading order, enforced by the schema as
+  // well as the module. SQLite can't add a CHECK to an existing table, so
+  // rebuild it.
+  `
+  CREATE TABLE highlights_new (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    start_page INTEGER NOT NULL,
+    start_offset INTEGER NOT NULL,
+    end_page INTEGER NOT NULL,
+    end_offset INTEGER NOT NULL,
+    quote TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    note_text TEXT,
+    note_updated_at TEXT,
+    CHECK (start_page < end_page OR (start_page = end_page AND start_offset < end_offset))
+  );
+  INSERT INTO highlights_new (id, document_id, start_page, start_offset, end_page, end_offset, quote, created_at)
+    SELECT id, document_id, start_page, start_offset, end_page, end_offset, quote, created_at FROM highlights;
+  DROP TABLE highlights;
+  ALTER TABLE highlights_new RENAME TO highlights;
+  CREATE INDEX highlights_by_document ON highlights(document_id, start_page, start_offset);
+  `,
 ];
 
 export function openDb(file: string): Db {
