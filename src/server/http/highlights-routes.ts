@@ -1,8 +1,9 @@
 import { Hono, type Context } from "hono";
-import type { Anchor, CreateHighlightBody, PutNoteBody } from "../../shared/api-types.ts";
+import type { CreateHighlightBody, PutNoteBody } from "../../shared/api-types.ts";
 import { DomainError } from "../domain-error.ts";
 import type { Highlights } from "../highlights.ts";
-import { isRecord, jsonBody } from "./json-body.ts";
+import { isAnchor, isRecord } from "./guards.ts";
+import { jsonBody } from "./json-body.ts";
 
 /** Routes under /api/documents/:id/highlights. Thin: parse request, call Highlights, pick status. */
 export function documentHighlightsRoutes(highlights: Highlights): Hono {
@@ -55,9 +56,4 @@ function parsePutNoteBody(body: unknown): PutNoteBody {
     throw new DomainError("bad_request", "Expected a JSON body `{ text: string }`.");
   }
   return { text: body["text"] };
-}
-
-/** Shape check only; bounds are the Highlights module's job (`invalid_range`). */
-function isAnchor(value: unknown): value is Anchor {
-  return isRecord(value) && typeof value["page"] === "number" && typeof value["offset"] === "number";
 }
