@@ -67,6 +67,11 @@ export function putReadingPosition(id: string, page: number): Promise<DocumentDt
   return request(`/documents/${encodeURIComponent(id)}/reading-position`, json("PUT", { page } satisfies PutReadingPositionBody));
 }
 
+/** Forgets the Document's Reading Position, so it opens at page 1 again. Rejects with `document_not_found`. */
+export function clearReadingPosition(id: string): Promise<DocumentDto> {
+  return request(`/documents/${encodeURIComponent(id)}/reading-position`, { method: "DELETE" });
+}
+
 /** The Document's Highlights in reading order. */
 export function listHighlights(documentId: string): Promise<HighlightDto[]> {
   return request(`/documents/${encodeURIComponent(documentId)}/highlights`);
