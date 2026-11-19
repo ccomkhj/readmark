@@ -37,8 +37,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function listDocuments(): Promise<DocumentDto[]> {
-  return request("/documents");
+/** Newest import first; with `titleQuery`, only Documents whose title contains it (case-insensitive). */
+export function listDocuments(titleQuery?: string): Promise<DocumentDto[]> {
+  return request(titleQuery === undefined ? "/documents" : `/documents?q=${encodeURIComponent(titleQuery)}`);
 }
 
 export function getDocument(id: string): Promise<DocumentDto> {

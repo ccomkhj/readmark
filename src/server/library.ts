@@ -18,8 +18,8 @@ export type Library = {
    * Throws `not_a_pdf`, `encrypted_pdf`, `no_text_layer`; nothing is stored then.
    */
   importPdf(bytes: Uint8Array, originalFilename: string): Promise<ImportResultDto>;
-  /** Newest import first. */
-  list(): DocumentDto[];
+  /** Newest import first. With `titleQuery`, only Documents whose title contains it, ignoring case. */
+  list(titleQuery?: string): DocumentDto[];
   /** Throws `document_not_found`. */
   get(id: string): DocumentDto;
   /** Original PDF bytes. Throws `document_not_found`. */
@@ -113,9 +113,12 @@ export function createLibrary(db: Db, dataDir: string): Library {
       return { document: get(id), created };
     },
 
-    list() {
+    list(titleQuery) {
+      const where = titleQuery === undefined ? "" : `WHERE d.title LIKE '%' || @titleQuery || '%'`;
       // rowid breaks ties between imports within the same millisecond.
-      const rows = db.prepare(`${SELECT_DOCUMENT} ORDER BY d.imported_at DESC, d.rowid DESC`).all() as DocumentRow[];
+      const rows = db
+        .prepare(`${SELECT_DOCUMENT} ${where} ORDER BY d.imported_at DESC, d.rowid DESC`)
+        .all(titleQuery === undefined ? {} : { titleQuery }) as DocumentRow[];
       return rows.map(toDto);
     },
 

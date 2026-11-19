@@ -143,4 +143,19 @@ describe("GET /api/documents", () => {
       readingPosition: null,
     });
   });
+
+  it("filters by a case-insensitive title substring with ?q=", async () => {
+    const t = app.get();
+    await importFixture(t, SAMPLE);
+    await importFixture(t, SECOND);
+
+    const titles = async (q: string) =>
+      ((await (await t.request(`/api/documents?q=${encodeURIComponent(q)}`)).json()) as { title: string }[]).map(
+        (d) => d.title,
+      );
+
+    expect(await titles("art of")).toEqual(["The Art of Reading"]);
+    expect(await titles("BOOK")).toEqual(["A Second Book"]);
+    expect(await titles("nothing like this")).toEqual([]);
+  });
 });
