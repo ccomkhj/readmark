@@ -18,7 +18,7 @@ export function documentsRoutes(library: Library): Hono {
     return c.json(result, result.created ? 201 : 200);
   });
 
-  routes.get("/", (c) => c.json(library.list()));
+  routes.get("/", (c) => c.json(library.list(c.req.query("q"))));
 
   routes.get("/:id", (c) => c.json(library.get(c.req.param("id"))));
 
