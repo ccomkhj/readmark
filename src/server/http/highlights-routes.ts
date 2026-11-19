@@ -1,8 +1,9 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import type { Anchor, CreateHighlightBody, PutNoteBody } from "../../shared/api-types.ts";
 import { DomainError } from "../domain-error.ts";
 import type { Highlights } from "../highlights.ts";
 import { isRecord, jsonBody } from "./json-body.ts";
+import { documentIdParam } from "./params.ts";
 
 /** Routes under /api/documents/:id/highlights. Thin: parse request, call Highlights, pick status. */
 export function documentHighlightsRoutes(highlights: Highlights): Hono {
@@ -10,10 +11,10 @@ export function documentHighlightsRoutes(highlights: Highlights): Hono {
 
   routes.post("/", async (c) => {
     const { start, end } = parseCreateHighlightBody(await jsonBody(c));
-    return c.json(highlights.create(documentId(c), start, end), 201);
+    return c.json(highlights.create(documentIdParam(c), start, end), 201);
   });
 
-  routes.get("/", (c) => c.json(highlights.list(documentId(c))));
+  routes.get("/", (c) => c.json(highlights.list(documentIdParam(c))));
 
   return routes;
 }
@@ -35,12 +36,6 @@ export function highlightsRoutes(highlights: Highlights): Hono {
   routes.delete("/:id/note", (c) => c.json(highlights.removeNote(c.req.param("id"))));
 
   return routes;
-}
-
-function documentId(c: Context): string {
-  const id = c.req.param("id");
-  if (id === undefined) throw new Error("route mounted without :id");
-  return id;
 }
 
 function parseCreateHighlightBody(body: unknown): CreateHighlightBody {
