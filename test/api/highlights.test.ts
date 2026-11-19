@@ -440,6 +440,17 @@ describe("Notes", () => {
     expect(await listQuotesAndNotes(t, documentId)).toEqual([["Chapter One", null]]);
   });
 
+  it("DELETE on a Highlight without a Note is a no-op that returns the Highlight", async () => {
+    const t = app.get();
+    const { documentId, highlight } = await sampleWithHighlight(t);
+
+    const res = await t.request(`/api/highlights/${highlight.id}/note`, { method: "DELETE" });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(highlight);
+    expect(await listQuotesAndNotes(t, documentId)).toEqual([["Chapter One", null]]);
+  });
+
   it("returns 404 highlight_not_found for an unknown Highlight", async () => {
     const t = app.get();
 
