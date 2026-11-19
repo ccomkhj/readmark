@@ -24,8 +24,11 @@ export type Highlights = {
    * before end), `empty_highlight` (whitespace-only quote), `overlapping_highlight`.
    */
   create(documentId: string, start: Anchor, end: Anchor): HighlightDto;
-  /** Reading order (by start anchor). Throws `document_not_found`. */
-  list(documentId: string): HighlightDto[];
+  /**
+   * Reading order (by start anchor). With `page`, only the Highlights on that
+   * page, so the Reader can load one page's overlays. Throws `document_not_found`.
+   */
+  list(documentId: string, page?: number): HighlightDto[];
   /** Removes the Highlight and its Note. Throws `highlight_not_found`. */
   remove(id: string): void;
   /**
@@ -76,6 +79,12 @@ export function createHighlights(db: Db): Highlights {
       .prepare(`SELECT * FROM highlights WHERE document_id = ? ORDER BY start_page, start_offset`)
       .all(documentId) as HighlightRow[];
 
+  /** A Document's Highlights on `page`, in reading order. */
+  const listPageRows = (documentId: string, page: number) =>
+    db
+      .prepare(`SELECT * FROM highlights WHERE document_id = ? AND start_page = ? ORDER BY start_offset`)
+      .all(documentId, page) as HighlightRow[];
+
   const insert = db.prepare(
     `INSERT INTO highlights (id, document_id, start_page, start_offset, end_page, end_offset, quote, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -111,10 +120,11 @@ export function createHighlights(db: Db): Highlights {
   return {
     create: (documentId, start, end) => create(documentId, start, end),
 
-    list(documentId) {
+    list(documentId, page) {
       requireDocument(documentId);
       const text = documentText(documentId);
-      return listRows(documentId).map((row) => toDto(row, text));
+      const rows = page === undefined ? listRows(documentId) : listPageRows(documentId, page);
+      return rows.map((row) => toDto(row, text));
     },
 
     remove(id) {

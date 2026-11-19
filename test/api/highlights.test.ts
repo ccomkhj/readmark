@@ -231,6 +231,37 @@ describe("overlap and reading order", () => {
     ]);
   });
 
+  it("lists one page's Highlights with ?page=", async () => {
+    const t = app.get();
+    const id = await importSample(t);
+    for (const [page, text] of [
+      [1, "the author"],
+      [2, "active thinking"],
+      [1, "Chapter One"],
+    ] as const) {
+      expect((await createHighlight(t, id, rangeOf(SAMPLE, page, text))).status).toBe(201);
+    }
+
+    const quotes = async (page: number) =>
+      ((await (await t.request(`/api/documents/${id}/highlights?page=${page}`)).json()) as { quote: string }[]).map(
+        (h) => h.quote,
+      );
+
+    expect(await quotes(1)).toEqual(["Chapter One", "the author"]);
+    expect(await quotes(2)).toEqual(["active thinking"]);
+    expect(await quotes(5)).toEqual([]);
+  });
+
+  it.each(["0", "-1", "1.5", "two"])("rejects ?page=%s with 400 bad_request", async (page) => {
+    const t = app.get();
+    const id = await importSample(t);
+
+    const res = await t.request(`/api/documents/${id}/highlights?page=${page}`);
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("bad_request");
+  });
+
   it("lists nothing for a Document without Highlights, and 404 for an unknown Document", async () => {
     const t = app.get();
     const id = await importSample(t);
