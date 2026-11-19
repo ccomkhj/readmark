@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NO_METADATA, SAMPLE, type PdfFixture } from "../fixtures/definitions.ts";
-import { fixtureId, importFixture, useTestApp, type TestApp } from "./harness.ts";
+import { fixtureId, importFixture, readFixture, uploadBytes, useTestApp, type TestApp } from "./harness.ts";
 
 const app = useTestApp();
 
@@ -133,6 +133,21 @@ describe("GET /api/documents/:id/export", () => {
         "\n" +
         "*No highlights yet.*\n",
     );
+  });
+
+  // NO_METADATA has no Title, so the upload's file name becomes the title the slug is built from.
+  it.each([
+    ["Crème Brûlée: Notes & Drafts.pdf", "creme-brulee-notes-drafts-insights.md"],
+    ["  --Chapter 3--  .pdf", "chapter-3-insights.md"],
+    ["日本語の本.pdf", "document-insights.md"],
+  ])("names the export of %j as %j", async (uploadName, fileName) => {
+    const t = app.get();
+    const res = await uploadBytes(t, await readFixture(NO_METADATA), uploadName);
+    const { id } = (await res.json()).document;
+
+    const exported = await t.request(`/api/documents/${id}/export`);
+
+    expect(exported.headers.get("Content-Disposition")).toBe(`attachment; filename="${fileName}"`);
   });
 
   it("returns 404 document_not_found for an unknown Document", async () => {
