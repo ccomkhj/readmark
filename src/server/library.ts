@@ -58,8 +58,14 @@ export function createLibrary(db: Db, dataDir: string): Library {
   mkdirSync(filesDir, { recursive: true });
   const filePath = (id: string) => join(filesDir, `${id}.pdf`);
 
-  const findRow = (id: string) =>
-    db.prepare(`${SELECT_DOCUMENT} WHERE d.id = ?`).get(id) as DocumentRow | undefined;
+  // Prepared once per Library, not per call.
+  const selectById = db.prepare(`${SELECT_DOCUMENT} WHERE d.id = ?`);
+  // rowid breaks ties between imports within the same millisecond.
+  const selectAll = db.prepare(`${SELECT_DOCUMENT} ORDER BY d.imported_at DESC, d.rowid DESC`);
+  const deleteDocument = db.prepare(`DELETE FROM documents WHERE id = ?`);
+  const updateReadingPosition = db.prepare(`UPDATE documents SET last_read_page = ?, last_read_at = ? WHERE id = ?`);
+
+  const findRow = (id: string) => selectById.get(id) as DocumentRow | undefined;
 
   const get = (id: string): DocumentDto => {
     const row = findRow(id);
@@ -114,9 +120,7 @@ export function createLibrary(db: Db, dataDir: string): Library {
     },
 
     list() {
-      // rowid breaks ties between imports within the same millisecond.
-      const rows = db.prepare(`${SELECT_DOCUMENT} ORDER BY d.imported_at DESC, d.rowid DESC`).all() as DocumentRow[];
-      return rows.map(toDto);
+      return (selectAll.all() as DocumentRow[]).map(toDto);
     },
 
     get,
@@ -129,7 +133,7 @@ export function createLibrary(db: Db, dataDir: string): Library {
     async remove(id) {
       // Rows first, then bytes (mirror of import), so a stored Document always
       // has its file; a crash in between only leaves an orphan file.
-      const { changes } = db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
+      const { changes } = deleteDocument.run(id);
       if (changes === 0) throw documentNotFound(id);
       await rm(filePath(id), { force: true });
     },
@@ -139,11 +143,7 @@ export function createLibrary(db: Db, dataDir: string): Library {
       if (!Number.isInteger(page) || page < 1 || page > pageCount) {
         throw new DomainError("invalid_page", `Page must be an integer in 1..${pageCount}, got ${page}.`);
       }
-      db.prepare(`UPDATE documents SET last_read_page = ?, last_read_at = ? WHERE id = ?`).run(
-        page,
-        new Date().toISOString(),
-        id,
-      );
+      updateReadingPosition.run(page, new Date().toISOString(), id);
       return get(id);
     },
   };
