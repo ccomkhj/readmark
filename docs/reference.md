@@ -29,3 +29,9 @@ The desktop shell (`src/desktop/main.ts`, Electron) runs the same Hono app in-pr
 Stack: React and PDF.js in the browser; Hono and SQLite (better-sqlite3) on the server.
 
 The domain vocabulary is defined in [`GLOSSARY.md`](../GLOSSARY.md), and design decisions are recorded in [`adr/`](adr/).
+
+## Tests
+
+Tests drive the HTTP API in-process through `test/api/harness.ts`; they never import server modules or open SQLite directly, so internals can change without touching them. Each test gets a fresh temporary data directory.
+
+Fixture PDFs are generated, not hand-made. `test/fixtures/definitions.ts` describes each one; tests read the same definitions to compute expected titles and anchors. To add or change a fixture, edit the definitions, run `npm run fixtures`, and commit the regenerated PDFs.
